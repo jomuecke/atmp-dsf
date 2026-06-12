@@ -16,7 +16,7 @@
           <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie"/>
         </meta>
         <identifier>
-          <system value="https://example.org/fhir/sid/research-study"/>
+          <system value="https://ukhd.de/fhir/sid/research-study"/>
           <value value="ATMP"/>
         </identifier>
         <status value="active"/>
@@ -45,7 +45,7 @@
               <code value="ANON"/>
             </coding>
           </type>
-          <system value="https://example.org/fhir/sid/atmp-pseudonym"/>
+          <system value="https://ukhd.de/fhir/sid/atmp-pseudonym"/>
           <value value="REPLACE_WITH_RESEARCHSUBJECT_PSEUDONYM_VALUE"/>
         </identifier>
         <!--
