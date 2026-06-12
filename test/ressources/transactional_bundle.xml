@@ -12,8 +12,7 @@
   <!-- even though the referenced MII profile constrains both.    -->
 
 
-  <!-- 1) ResearchStudy via client-assigned logical id           -->
-  
+  <!-- 1) ResearchStudy  -->
   <entry>
     <fullUrl value="ResearchStudy/atmp-study"/>
     <resource>
