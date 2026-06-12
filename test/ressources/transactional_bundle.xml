@@ -2,15 +2,9 @@
 <Bundle xmlns="http://hl7.org/fhir">
   <type value="transaction"/>
 
-  <!-- ATMP study participation transaction                      -->
-  <!--                                                           -->
-  <!-- Give this bundle to participating sites to create/update   -->
-  <!-- the shared ATMP ResearchStudy and one local participant.   -->
-  <!--                                                           -->
   <!-- ATMP project decision: ResearchSubject intentionally does  -->
   <!-- not include ResearchSubject.consent or period.start yet,   -->
   <!-- even though the referenced MII profile constrains both.    -->
-
 
   <!-- 1) ResearchStudy  -->
   <entry>
