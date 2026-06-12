@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="atmp-fhir-store-test-bundle"/>
+  <type value="transaction"/>
+  <entry>
+    <fullUrl value="ResearchStudy/atmp-study"/>
+    <resource>
+      <ResearchStudy>
+        <id value="atmp-study"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie"/>
+        </meta>
+        <identifier>
+          <system value="https://ukhd.de/fhir/sid/research-study"/>
+          <value value="ATMP"/>
+        </identifier>
+        <title value="ATMP Study"/>
+        <status value="active"/>
+      </ResearchStudy>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchStudy/atmp-study"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Patient/0000123456"/>
+    <resource>
+      <Patient>
+        <id value="0000123456"/>
+        <identifier>
+          <system value="https://ukhd.de/fhir/sid/ish-pid"/>
+          <value value="0000123456"/>
+        </identifier>
+      </Patient>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Patient/0000123456"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Patient/0001234567"/>
+    <resource>
+      <Patient>
+        <id value="0001234567"/>
+        <identifier>
+          <system value="https://ukhd.de/fhir/sid/ish-pid"/>
+          <value value="0001234567"/>
+        </identifier>
+      </Patient>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Patient/0001234567"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Patient/0012345678"/>
+    <resource>
+      <Patient>
+        <id value="0012345678"/>
+        <identifier>
+          <system value="https://ukhd.de/fhir/sid/ish-pid"/>
+          <value value="0012345678"/>
+        </identifier>
+      </Patient>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Patient/0012345678"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="ResearchSubject/atmp-subject-code-01"/>
+    <resource>
+      <ResearchSubject>
+        <id value="atmp-subject-code-01"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="ANON"/>
+            </coding>
+          </type>
+          <system value="https://ukhd.de/fhir/sid/atmp-study-pseudonym"/>
+          <value value="code-01"/>
+        </identifier>
+        <status value="on-study"/>
+        <period>
+          <start value="2025-01-01"/>
+        </period>
+        <study>
+          <reference value="ResearchStudy/atmp-study"/>
+        </study>
+        <individual>
+          <reference value="Patient/0000123456"/>
+        </individual>
+      </ResearchSubject>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchSubject/atmp-subject-code-01"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="ResearchSubject/atmp-subject-code-02"/>
+    <resource>
+      <ResearchSubject>
+        <id value="atmp-subject-code-02"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="ANON"/>
+            </coding>
+          </type>
+          <system value="https://ukhd.de/fhir/sid/atmp-study-pseudonym"/>
+          <value value="code-02"/>
+        </identifier>
+        <status value="on-study"/>
+        <period>
+          <start value="2024-05-15"/>
+        </period>
+        <study>
+          <reference value="ResearchStudy/atmp-study"/>
+        </study>
+        <individual>
+          <reference value="Patient/0001234567"/>
+        </individual>
+      </ResearchSubject>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchSubject/atmp-subject-code-02"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="ResearchSubject/atmp-subject-code-03"/>
+    <resource>
+      <ResearchSubject>
+        <id value="atmp-subject-code-03"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="ANON"/>
+            </coding>
+          </type>
+          <system value="https://ukhd.de/fhir/sid/atmp-study-pseudonym"/>
+          <value value="code-03"/>
+        </identifier>
+        <status value="on-study"/>
+        <period>
+          <start value="2022-12-12"/>
+        </period>
+        <study>
+          <reference value="ResearchStudy/atmp-study"/>
+        </study>
+        <individual>
+          <reference value="Patient/0012345678"/>
+        </individual>
+      </ResearchSubject>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchSubject/atmp-subject-code-03"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Observation/SWL-2507011234-2025-07-01-1"/>
+    <resource>
+      <Observation>
+        <id value="SWL-2507011234-2025-07-01-1"/>
+        <meta>
+          <versionId value="1"/>
+          <lastUpdated value="2025-07-01T14:40:00+01:00"/>
+          <source value="#3d14d35eb0a622ea"/>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="OBI"/>
+            </coding>
+          </type>
+          <system value="1.2.276.0.76.3.1.78.1.1.10.70.3.1"/>
+          <value value="SWL-2507011234-2025-07-01-1"/>
+          <assigner>
+            <identifier>
+              <system value="https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier"/>
+              <value value="UKHD"/>
+            </identifier>
+          </assigner>
+        </identifier>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="26436-6"/>
+          </coding>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="6690-2"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="Patient/0000123456"/>
+        </subject>
+        <effectiveDateTime value="2025-07-01T12:40:00+01:00"/>
+        <valueQuantity>
+          <value value="4.23"/>
+          <unit value="/nl"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="/nl"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/SWL-2507011234-2025-07-01-1"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Observation/SWL-2508024321-2025-08-02-3"/>
+    <resource>
+      <Observation>
+        <id value="SWL-2508024321-2025-08-02-3"/>
+        <meta>
+          <versionId value="1"/>
+          <lastUpdated value="2025-08-02T19:49:00+01:00"/>
+          <source value="#3d14d35eb0a622ea"/>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="OBI"/>
+            </coding>
+          </type>
+          <system value="1.2.276.0.76.3.1.78.1.1.10.70.3.1"/>
+          <value value="SWL-2508024321-2025-08-02-3"/>
+          <assigner>
+            <identifier>
+              <system value="https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier"/>
+              <value value="UKHD"/>
+            </identifier>
+          </assigner>
+        </identifier>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="26436-6"/>
+          </coding>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="718-7"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="Patient/0001234567"/>
+        </subject>
+        <effectiveDateTime value="2025-08-02T17:49:00+01:00"/>
+        <valueQuantity>
+          <value value="15.6"/>
+          <unit value="g/dl"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="g/dl"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/SWL-2508024321-2025-08-02-3"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="Observation/SWL-2509036789-2025-09-03-9"/>
+    <resource>
+      <Observation>
+        <id value="SWL-2509036789-2025-09-03-9"/>
+        <meta>
+          <versionId value="1"/>
+          <lastUpdated value="2025-09-03T15:40:00+01:00"/>
+          <source value="#3d14d35eb0a622ea"/>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="OBI"/>
+            </coding>
+          </type>
+          <system value="1.2.276.0.76.3.1.78.1.1.10.70.3.1"/>
+          <value value="SWL-2509036789-2025-09-03-9"/>
+          <assigner>
+            <identifier>
+              <system value="https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier"/>
+              <value value="UKHD"/>
+            </identifier>
+          </assigner>
+        </identifier>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="26436-6"/>
+          </coding>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="777-3"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="Patient/0001234567"/>
+        </subject>
+        <effectiveDateTime value="2025-09-03T13:40:00+01:00"/>
+        <valueQuantity>
+          <value value="389.0"/>
+          <unit value="/nl"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="/nl"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/SWL-2509036789-2025-09-03-9"/>
+    </request>
+  </entry>
+</Bundle>

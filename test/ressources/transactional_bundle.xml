@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bundle xmlns="http://hl7.org/fhir">
+  <type value="transaction"/>
+
+  <!-- ATMP study participation transaction                      -->
+  <!--                                                           -->
+  <!-- Give this bundle to participating sites to create/update   -->
+  <!-- the shared ATMP ResearchStudy and one local participant.   -->
+  <!--                                                           -->
+  <!-- ATMP project decision: ResearchSubject intentionally does  -->
+  <!-- not include ResearchSubject.consent or period.start yet,   -->
+  <!-- even though the referenced MII profile constrains both.    -->
+
+
+  <!-- 1) ResearchStudy via client-assigned logical id           -->
+  
+  <entry>
+    <fullUrl value="ResearchStudy/atmp-study"/>
+    <resource>
+      <ResearchStudy>
+        <id value="atmp-study"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie"/>
+        </meta>
+        <identifier>
+          <system value="https://example.org/fhir/sid/research-study"/>
+          <value value="ATMP"/>
+        </identifier>
+        <status value="active"/>
+        <title value="ATMP Study"/>
+      </ResearchStudy>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchStudy/atmp-study"/>
+    </request>
+  </entry>
+
+  <!-- 2) ResearchSubject  -->
+  <entry>
+    <fullUrl value="ResearchSubject/REPLACE_WITH_RESEARCHSUBJECT_ID"/>
+    <resource>
+      <ResearchSubject>
+        <id value="REPLACE_WITH_RESEARCHSUBJECT_ID"/>
+        <meta>
+          <!-- Strict MII profile validation will fail while consent and period.start are omitted. -->
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
+        <identifier>
+          <type>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+              <code value="ANON"/>
+            </coding>
+          </type>
+          <system value="https://example.org/fhir/sid/atmp-pseudonym"/>
+          <value value="REPLACE_WITH_RESEARCHSUBJECT_PSEUDONYM_VALUE"/>
+        </identifier>
+        <!--
+          Use status as the primary DSF inclusion switch.
+          Active value: on-study.
+          Dropout/end values: off-study or withdrawn.
+        -->
+        <status value="REPLACE_WITH_RESEARCHSUBJECT_STATUS"/>    
+        <study>
+          <reference value="ResearchStudy/atmp-study"/>
+        </study>
+        <individual>
+          <reference value="Patient/REPLACE_WITH_EXISTING_PATIENT_ID"/>
+        </individual>
+        <!-- Optional: uncomment for ATMP indication, cohort, arm, or disease group. -->
+        <!-- <actualArm value="REPLACE_WITH_ACTUAL_ARM"/> -->
+      </ResearchSubject>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="ResearchSubject/REPLACE_WITH_RESEARCHSUBJECT_ID"/>
+    </request>
+  </entry>
+</Bundle>
