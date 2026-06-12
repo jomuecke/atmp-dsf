@@ -36,7 +36,6 @@
       <ResearchSubject>
         <id value="REPLACE_WITH_RESEARCHSUBJECT_ID"/>
         <meta>
-          <!-- Strict MII profile validation will fail while consent and period.start are omitted. -->
           <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
         </meta>
         <identifier>
@@ -61,7 +60,7 @@
         <individual>
           <reference value="Patient/REPLACE_WITH_EXISTING_PATIENT_ID"/>
         </individual>
-        <!-- Optional: uncomment for ATMP indication, cohort, arm, or disease group. -->
+        <!-- Optional: ATMP indication, cohort, arm, or disease group. -->
         <!-- <actualArm value="REPLACE_WITH_ACTUAL_ARM"/> -->
       </ResearchSubject>
     </resource>
