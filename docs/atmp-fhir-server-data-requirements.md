@@ -10,7 +10,7 @@ Each participating site must ensure that the following resources exist in the FH
 
 | Resource | Purpose |
 | --- | --- |
-| `ResearchStudy` | Represents the ATMP study/cohort. |
+| `ResearchStudy` | Represents the ATMP study |
 | `ResearchSubject` | Represents one patient participating in the ATMP study. |
 | `Patient` | The patient referenced by the `ResearchSubject` and by the medical Observations. |
 | `Observation` | Laboratory values that may be sent to the ATMP platform. |
@@ -31,13 +31,13 @@ Observation/<observation-id>
   -> Observation.subject = Patient/<patient-id>
 ```
 
-The ATMP pseudonym must be stored on the `ResearchSubject.identifier`. The `Patient` resource and the `Observation.subject` reference should use the local FHIR patient reference, not the ATMP pseudonym.
+The ATMP pseudonym must be stored on the `ResearchSubject.identifier`. 
 
 ## ResearchStudy
 
 There should be one `ResearchStudy` resource identifying the ATMP study.
 
-Recommended profile:
+profile:
 
 ```text
 https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie
@@ -71,7 +71,7 @@ Sites may adapt the `id`, `identifier.system`, and `title`, but the identifier s
 
 Each participating patient must have one `ResearchSubject` linked to the ATMP `ResearchStudy`.
 
-Recommended profile:
+profile:
 
 ```text
 https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband
@@ -130,7 +130,7 @@ Minimum example:
 
 The `Patient` resource must exist before the DSF process runs.
 
-The DSF process uses the `ResearchSubject.individual.reference` to identify the patient whose Observations should be queried. Therefore, the exact Patient identifier strategy may be site-specific, but the reference must resolve on the local FHIR server.
+The DSF process uses the `ResearchSubject.individual.reference` to identify the patient whose Observations should be queried.
 
 Minimum example:
 
@@ -151,7 +151,7 @@ Minimum example:
 
 Laboratory Observations must exist on the FHIR server and must reference the same `Patient` resource that is linked from the `ResearchSubject`.
 
-Recommended profile:
+profile:
 
 ```text
 https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab
@@ -162,13 +162,13 @@ Required content:
 | Element | Requirement |
 | --- | --- |
 | `Observation.id` | Stable technical FHIR id. |
-| `Observation.identifier` | Stable business identifier for detecting duplicates/updates. |
+| `Observation.identifier` | Stable business identifier. |
 | `Observation.status` | Usually `final`. |
 | `Observation.category` | Laboratory category. |
-| `Observation.code` | LOINC code where available. |
-| `Observation.subject.reference` | Must reference the same local `Patient` resource used by `ResearchSubject.individual`. |
+| `Observation.code` | LOINC code. |
+| `Observation.subject.reference` | Reference to the same local `Patient` resource. |
 | `Observation.effectiveDateTime` | Time of the observation. |
-| `Observation.valueQuantity` | Laboratory value and unit, where applicable. |
+| `Observation.valueQuantity` | Laboratory value and unit |
 
 Minimum example:
 
@@ -313,43 +313,3 @@ Participating sites must replace:
   ]
 }
 ```
-
-## Expected DSF Query Pattern
-
-The DSF process can identify eligible patients through the study resources:
-
-```http
-GET [base]/ResearchStudy?identifier=https://example.org/fhir/sid/research-study|ATMP
-```
-
-Then query the subjects for the study:
-
-```http
-GET [base]/ResearchSubject?study=ResearchStudy/atmp-study&status=on-study
-```
-
-For each `ResearchSubject`, read:
-
-```text
-ResearchSubject.individual.reference
-ResearchSubject.identifier.value
-```
-
-Then query laboratory Observations for the patient:
-
-```http
-GET [base]/Observation?subject=Patient/<PATIENT_ID>&category=http://terminology.hl7.org/CodeSystem/observation-category|laboratory
-```
-
-The DSF process should only send Observations that have not already been sent. The transfer state should be tracked by the DSF process, for example using `Observation.identifier.system`, `Observation.identifier.value`, and optionally the FHIR version or last update timestamp.
-
-## Example Test Bundles
-
-This repository contains generated example bundles based on the local staging test CSV data:
-
-```text
-test/ressources/atmp_fhir_store_test_bundle.json
-test/ressources/atmp_fhir_store_test_bundle.xml
-```
-
-These bundles are intended for local FHIR server testing only.
