@@ -83,11 +83,6 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-01",
-        "meta": {
-          "profile": [
-            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
-          ]
-        },
         "identifier": [
           {
             "type": {
@@ -123,11 +118,6 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-02",
-        "meta": {
-          "profile": [
-            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
-          ]
-        },
         "identifier": [
           {
             "type": {
@@ -163,11 +153,6 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-03",
-        "meta": {
-          "profile": [
-            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
-          ]
-        },
         "identifier": [
           {
             "type": {
