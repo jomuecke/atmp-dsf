@@ -56,7 +56,7 @@ Minimum example:
   },
   "identifier": [
     {
-      "system": "https://example.org/fhir/sid/research-study",
+      "system": "https://ukhd.de/fhir/sid/research-study",
       "value": "ATMP"
     }
   ],
@@ -93,11 +93,6 @@ Minimum example:
 {
   "resourceType": "ResearchSubject",
   "id": "atmp-subject-001",
-  "meta": {
-    "profile": [
-      "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
-    ]
-  },
   "identifier": [
     {
       "type": {
@@ -108,7 +103,7 @@ Minimum example:
           }
         ]
       },
-      "system": "https://example.org/fhir/sid/atmp-pseudonym",
+      "system": "https://ukhd.de/fhir/sid/atmp-pseudonym",
       "value": "<ATMP_PSEUDONYM>"
     }
   ],
@@ -261,7 +256,7 @@ Participating sites must replace:
         },
         "identifier": [
           {
-            "system": "https://example.org/fhir/sid/research-study",
+            "system": "https://ukhd.de/fhir/sid/research-study",
             "value": "ATMP"
           }
         ],
@@ -278,11 +273,6 @@ Participating sites must replace:
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "<SUBJECT_ID>",
-        "meta": {
-          "profile": [
-            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
-          ]
-        },
         "identifier": [
           {
             "type": {
@@ -293,7 +283,7 @@ Participating sites must replace:
                 }
               ]
             },
-            "system": "https://example.org/fhir/sid/atmp-pseudonym",
+            "system": "https://ukhd.de/fhir/sid/atmp-pseudonym",
             "value": "<ATMP_PSEUDONYM>"
           }
         ],
