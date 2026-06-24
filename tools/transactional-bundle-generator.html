@@ -364,6 +364,14 @@
           <input id="includeStudy" type="checkbox">
         </label>
 
+        <div class="field-grid" style="margin-bottom: 16px;">
+          <label>
+            Default participation start
+            <input id="defaultPeriodStart" type="date" value="2026-01-01">
+            <span class="hint">Used as ResearchSubject.period.start when no row-specific date is supplied.</span>
+          </label>
+        </div>
+
         <div id="singlePanel">
           <div class="section-title">
             <h2>Patient</h2>
@@ -413,7 +421,7 @@
             <label>
               CSV rows
               <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,actual_arm&#10;atmp-subject-code-01,Patient/0000123456,code-01,on-study,"></textarea>
-              <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, actual_arm.</span>
+              <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, actual_arm, period_start.</span>
             </label>
           </div>
         </div>
@@ -456,6 +464,7 @@
       subjectId: document.getElementById("subjectId"),
       pseudonym: document.getElementById("pseudonym"),
       patientReference: document.getElementById("patientReference"),
+      defaultPeriodStart: document.getElementById("defaultPeriodStart"),
       status: document.getElementById("status"),
       actualArm: document.getElementById("actualArm"),
       csvFile: document.getElementById("csvFile"),
@@ -490,6 +499,10 @@
 
     function validFhirId(value) {
       return /^[A-Za-z0-9\-.]{1,64}$/.test(value);
+    }
+
+    function validFhirDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(value);
     }
 
     function message(type, text) {
@@ -534,6 +547,7 @@
       const pseudonym = xmlEscape(row.pseudonym);
       const status = xmlEscape(row.status || "on-study");
       const patientReference = xmlEscape(normalizePatientReference(row.patientReference));
+      const periodStart = xmlEscape(row.periodStart || els.defaultPeriodStart.value || "2026-01-01");
       const actualArm = row.actualArm ? [
         "        <actualArm value=\"" + xmlEscape(row.actualArm) + "\"/>"
       ] : [];
@@ -544,6 +558,9 @@
         "    <resource>",
         "      <ResearchSubject>",
         "        <id value=\"" + id + "\"/>",
+        "        <meta>",
+        "          <profile value=\"https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband\"/>",
+        "        </meta>",
         "        <identifier>",
         "          <type>",
         "            <coding>",
@@ -555,6 +572,9 @@
         "          <value value=\"" + pseudonym + "\"/>",
         "        </identifier>",
         "        <status value=\"" + status + "\"/>",
+        "        <period>",
+        "          <start value=\"" + periodStart + "\"/>",
+        "        </period>",
         "        <study>",
         "          <reference value=\"ResearchStudy/atmp-study\"/>",
         "        </study>",
@@ -562,6 +582,11 @@
         "          <reference value=\"" + patientReference + "\"/>",
         "        </individual>",
         ...actualArm,
+        "        <consent>",
+        "          <extension url=\"http://hl7.org/fhir/StructureDefinition/data-absent-reason\">",
+        "            <valueCode value=\"unknown\"/>",
+        "          </extension>",
+        "        </consent>",
         "      </ResearchSubject>",
         "    </resource>",
         "    <request>",
@@ -605,6 +630,11 @@
         }
         if (row.status && !["on-study", "off-study", "withdrawn"].includes(row.status)) {
           errors.push(`Row ${line}: status must be on-study, off-study, or withdrawn.`);
+        }
+        if (!row.periodStart) {
+          errors.push(`Row ${line}: missing period_start/default participation start.`);
+        } else if (!validFhirDate(row.periodStart)) {
+          errors.push(`Row ${line}: period_start must use YYYY-MM-DD.`);
         }
       });
       return errors;
@@ -658,6 +688,7 @@
       const pseudonymIndex = index("pseudonym");
       const statusIndex = index("status");
       const armIndex = index("actual_arm");
+      const periodStartIndex = index("period_start");
 
       if (subjectIndex === -1 || patientIndex === -1 || pseudonymIndex === -1) {
         throw new Error("CSV header must include subject_id, patient_reference, and pseudonym.");
@@ -668,7 +699,8 @@
         patientReference: (cells[patientIndex] || "").trim(),
         pseudonym: (cells[pseudonymIndex] || "").trim(),
         status: (statusIndex >= 0 ? (cells[statusIndex] || "") : "on-study").trim() || "on-study",
-        actualArm: (armIndex >= 0 ? (cells[armIndex] || "") : "").trim()
+        actualArm: (armIndex >= 0 ? (cells[armIndex] || "") : "").trim(),
+        periodStart: (periodStartIndex >= 0 ? (cells[periodStartIndex] || "") : els.defaultPeriodStart.value).trim() || els.defaultPeriodStart.value
       }));
     }
 
@@ -679,7 +711,8 @@
           pseudonym: els.pseudonym.value.trim(),
           patientReference: els.patientReference.value.trim(),
           status: els.status.value,
-          actualArm: els.actualArm.value.trim()
+          actualArm: els.actualArm.value.trim(),
+          periodStart: els.defaultPeriodStart.value.trim()
         }];
       }
       return parseCsv(els.csvText.value);
@@ -770,6 +803,7 @@
       els.subjectId.value = "atmp-subject-code-01";
       els.pseudonym.value = "code-01";
       els.patientReference.value = "Patient/0000123456";
+      els.defaultPeriodStart.value = "2026-01-01";
       els.status.value = "on-study";
       els.actualArm.value = "";
       els.csvFile.value = "";
@@ -786,15 +820,15 @@
     els.includeStudy.addEventListener("change", render);
     els.sampleCsv.addEventListener("click", () => {
       els.csvText.value = [
-        "subject_id,patient_reference,pseudonym,status,actual_arm",
-        "atmp-subject-code-01,Patient/0000123456,code-01,on-study,",
-        "atmp-subject-code-02,0001234567,code-02,on-study,Cohort A",
-        "atmp-subject-code-03,Patient/0012345678,code-03,withdrawn,"
+        "subject_id,patient_reference,pseudonym,status,actual_arm,period_start",
+        "atmp-subject-code-01,Patient/0000123456,code-01,on-study,,2026-01-01",
+        "atmp-subject-code-02,0001234567,code-02,on-study,Cohort A,2026-01-01",
+        "atmp-subject-code-03,Patient/0012345678,code-03,withdrawn,,2026-01-01"
       ].join("\n");
       render();
     });
 
-    [els.subjectId, els.pseudonym, els.patientReference, els.status, els.actualArm, els.csvText].forEach((el) => {
+    [els.subjectId, els.pseudonym, els.patientReference, els.defaultPeriodStart, els.status, els.actualArm, els.csvText].forEach((el) => {
       el.addEventListener("input", render);
       el.addEventListener("change", render);
     });

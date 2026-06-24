@@ -65,7 +65,6 @@ Minimum example:
 }
 ```
 
-Sites may adapt the `id`, `identifier.system`, and `title`, but the identifier should be stable and known to the DSF process.
 
 ## ResearchSubject
 
@@ -86,6 +85,8 @@ Required content:
 | `ResearchSubject.identifier.value` | Must contain the ATMP pseudonym used when sending data to the ATMP platform. |
 | `ResearchSubject.identifier.type` | Should use `ANON` from `http://terminology.hl7.org/CodeSystem/v2-0203`. |
 | `ResearchSubject.status` | Should indicate active study participation, for example `on-study`. |
+| `ResearchSubject.period.start` | Required by the MII profile. Use the known participation start date, or the agreed fallback date `2026-01-01` if the exact date is unavailable. |
+| `ResearchSubject.consent` | Required by the MII profile. If the consent reference is unavailable, use the FHIR `data-absent-reason` extension with code `unknown`. |
 
 Minimum example:
 
@@ -93,6 +94,11 @@ Minimum example:
 {
   "resourceType": "ResearchSubject",
   "id": "atmp-subject-001",
+  "meta": {
+    "profile": [
+      "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+    ]
+  },
   "identifier": [
     {
       "type": {
@@ -108,11 +114,22 @@ Minimum example:
     }
   ],
   "status": "on-study",
+  "period": {
+    "start": "2026-01-01"
+  },
   "study": {
     "reference": "ResearchStudy/atmp-study"
   },
   "individual": {
     "reference": "Patient/<PATIENT_ID>"
+  },
+  "consent": {
+    "extension": [
+      {
+        "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+        "valueCode": "unknown"
+      }
+    ]
   }
 }
 ```
@@ -273,6 +290,11 @@ Participating sites must replace:
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "<SUBJECT_ID>",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
         "identifier": [
           {
             "type": {
@@ -288,11 +310,22 @@ Participating sites must replace:
           }
         ],
         "status": "on-study",
+        "period": {
+          "start": "2026-01-01"
+        },
         "study": {
           "reference": "ResearchStudy/atmp-study"
         },
         "individual": {
           "reference": "Patient/<PATIENT_ID>"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
         }
       },
       "request": {

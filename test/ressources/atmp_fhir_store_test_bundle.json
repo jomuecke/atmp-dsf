@@ -83,6 +83,11 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-01",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
         "identifier": [
           {
             "type": {
@@ -106,6 +111,14 @@
         },
         "period": {
           "start": "2025-01-01"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
         }
       },
       "request": {
@@ -118,6 +131,11 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-02",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
         "identifier": [
           {
             "type": {
@@ -141,6 +159,14 @@
         },
         "period": {
           "start": "2024-05-15"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
         }
       },
       "request": {
@@ -153,6 +179,11 @@
       "resource": {
         "resourceType": "ResearchSubject",
         "id": "atmp-subject-code-03",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
         "identifier": [
           {
             "type": {
@@ -176,6 +207,14 @@
         },
         "period": {
           "start": "2022-12-12"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
         }
       },
       "request": {

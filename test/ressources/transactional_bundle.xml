@@ -2,9 +2,9 @@
 <Bundle xmlns="http://hl7.org/fhir">
   <type value="transaction"/>
 
-  <!-- ATMP project decision: ResearchSubject intentionally does  -->
-  <!-- not include ResearchSubject.consent or period.start yet,   -->
-  <!-- even though the referenced MII profile constrains both.    -->
+  <!-- ATMP project decision: ResearchSubject uses a fixed fallback -->
+  <!-- participation start date and marks missing consent data as   -->
+  <!-- unknown via the FHIR data-absent-reason extension.           -->
 
   <!-- 1) ResearchStudy  -->
   <entry>
@@ -35,6 +35,9 @@
     <resource>
       <ResearchSubject>
         <id value="REPLACE_WITH_RESEARCHSUBJECT_ID"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
         <identifier>
           <type>
             <coding>
@@ -51,6 +54,9 @@
           Dropout/end values: off-study or withdrawn.
         -->
         <status value="REPLACE_WITH_RESEARCHSUBJECT_STATUS"/>    
+        <period>
+          <start value="2026-01-01"/>
+        </period>
         <study>
           <reference value="ResearchStudy/atmp-study"/>
         </study>
@@ -59,6 +65,11 @@
         </individual>
         <!-- Optional: ATMP indication, cohort, arm, or disease group. -->
         <!-- <actualArm value="REPLACE_WITH_ACTUAL_ARM"/> -->
+        <consent>
+          <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+            <valueCode value="unknown"/>
+          </extension>
+        </consent>
       </ResearchSubject>
     </resource>
     <request>

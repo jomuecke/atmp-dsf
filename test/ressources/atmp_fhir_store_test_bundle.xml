@@ -76,6 +76,9 @@
     <resource>
       <ResearchSubject>
         <id value="atmp-subject-code-01"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
         <identifier>
           <type>
             <coding>
@@ -96,6 +99,11 @@
         <individual>
           <reference value="Patient/0000123456"/>
         </individual>
+        <consent>
+          <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+            <valueCode value="unknown"/>
+          </extension>
+        </consent>
       </ResearchSubject>
     </resource>
     <request>
@@ -108,6 +116,9 @@
     <resource>
       <ResearchSubject>
         <id value="atmp-subject-code-02"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
         <identifier>
           <type>
             <coding>
@@ -128,6 +139,11 @@
         <individual>
           <reference value="Patient/0001234567"/>
         </individual>
+        <consent>
+          <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+            <valueCode value="unknown"/>
+          </extension>
+        </consent>
       </ResearchSubject>
     </resource>
     <request>
@@ -140,6 +156,9 @@
     <resource>
       <ResearchSubject>
         <id value="atmp-subject-code-03"/>
+        <meta>
+          <profile value="https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"/>
+        </meta>
         <identifier>
           <type>
             <coding>
@@ -160,6 +179,11 @@
         <individual>
           <reference value="Patient/0012345678"/>
         </individual>
+        <consent>
+          <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+            <valueCode value="unknown"/>
+          </extension>
+        </consent>
       </ResearchSubject>
     </resource>
     <request>
