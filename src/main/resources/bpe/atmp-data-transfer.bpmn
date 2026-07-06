@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_atmp_data_transfer" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:message id="Message_atmpDataTransferStart" name="atmpDataTransferStart" />
+  <bpmn:process id="ukhdde_atmpDataTransfer" isExecutable="true" camunda:versionTag="#{version}">
+    <bpmn:startEvent id="StartEvent_atmpDataTransfer" name="start ATMP data transfer">
+      <bpmn:outgoing>Flow_start_to_query</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_atmpDataTransferStart" messageRef="Message_atmpDataTransferStart" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Activity_queryResearchSubjects" name="query research subjects" camunda:class="de.ukhd.process.atmp.service.QueryResearchSubjects">
+      <bpmn:incoming>Flow_start_to_query</bpmn:incoming>
+      <bpmn:outgoing>Flow_query_to_subprocess</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:subProcess id="Activity_perSubject" name="per research subject">
+      <bpmn:incoming>Flow_query_to_subprocess</bpmn:incoming>
+      <bpmn:outgoing>Flow_subprocess_to_end</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true" camunda:collection="${atmpResearchSubjects}" camunda:elementVariable="atmpSubject" />
+      <bpmn:startEvent id="StartEvent_perSubject">
+        <bpmn:outgoing>Flow_substart_to_create</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="Activity_createSubjectBundle" name="create subject bundle" camunda:class="de.ukhd.process.atmp.service.CreateSubjectBundle">
+        <bpmn:incoming>Flow_substart_to_create</bpmn:incoming>
+        <bpmn:outgoing>Flow_create_to_send</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Activity_sendToMedic" name="send to MEDIC" camunda:class="de.ukhd.process.atmp.service.SendToMedic">
+        <bpmn:incoming>Flow_create_to_send</bpmn:incoming>
+        <bpmn:outgoing>Flow_send_to_subend</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="EndEvent_perSubject">
+        <bpmn:incoming>Flow_send_to_subend</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_substart_to_create" sourceRef="StartEvent_perSubject" targetRef="Activity_createSubjectBundle" />
+      <bpmn:sequenceFlow id="Flow_create_to_send" sourceRef="Activity_createSubjectBundle" targetRef="Activity_sendToMedic" />
+      <bpmn:sequenceFlow id="Flow_send_to_subend" sourceRef="Activity_sendToMedic" targetRef="EndEvent_perSubject" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="EndEvent_atmpDataTransfer" name="end ATMP data transfer">
+      <bpmn:incoming>Flow_subprocess_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start_to_query" sourceRef="StartEvent_atmpDataTransfer" targetRef="Activity_queryResearchSubjects" />
+    <bpmn:sequenceFlow id="Flow_query_to_subprocess" sourceRef="Activity_queryResearchSubjects" targetRef="Activity_perSubject" />
+    <bpmn:sequenceFlow id="Flow_subprocess_to_end" sourceRef="Activity_perSubject" targetRef="EndEvent_atmpDataTransfer" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ukhdde_atmpDataTransfer">
+      <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="StartEvent_atmpDataTransfer">
+        <dc:Bounds x="152" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="130" y="225" width="83" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_query" bpmnElement="Activity_queryResearchSubjects">
+        <dc:Bounds x="240" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_subprocess" bpmnElement="Activity_perSubject" isExpanded="true">
+        <dc:Bounds x="400" y="80" width="520" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_substart" bpmnElement="StartEvent_perSubject">
+        <dc:Bounds x="432" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_create" bpmnElement="Activity_createSubjectBundle">
+        <dc:Bounds x="510" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_send" bpmnElement="Activity_sendToMedic">
+        <dc:Bounds x="670" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_subend" bpmnElement="EndEvent_perSubject">
+        <dc:Bounds x="832" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="EndEvent_atmpDataTransfer">
+        <dc:Bounds x="982" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="960" y="225" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_start_query" bpmnElement="Flow_start_to_query">
+        <di:waypoint x="188" y="200" />
+        <di:waypoint x="240" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_query_subprocess" bpmnElement="Flow_query_to_subprocess">
+        <di:waypoint x="340" y="200" />
+        <di:waypoint x="400" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_substart_create" bpmnElement="Flow_substart_to_create">
+        <di:waypoint x="468" y="200" />
+        <di:waypoint x="510" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_create_send" bpmnElement="Flow_create_to_send">
+        <di:waypoint x="610" y="200" />
+        <di:waypoint x="670" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_send_subend" bpmnElement="Flow_send_to_subend">
+        <di:waypoint x="770" y="200" />
+        <di:waypoint x="832" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_subprocess_end" bpmnElement="Flow_subprocess_to_end">
+        <di:waypoint x="920" y="200" />
+        <di:waypoint x="982" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
