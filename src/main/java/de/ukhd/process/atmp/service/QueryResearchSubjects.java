@@ -15,6 +15,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import de.ukhd.process.atmp.ConstantsAtmp;
+import de.ukhd.process.atmp.audit.AuditLog;
 import dev.dsf.bpe.v2.ProcessPluginApi;
 import dev.dsf.bpe.v2.activity.ServiceTask;
 import dev.dsf.bpe.v2.variables.Variables;
@@ -48,15 +49,36 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 	@Override
 	public void execute(ProcessPluginApi api, Variables variables) throws Exception
 	{
-		advanceCycleState(variables);
+		// Capture the cycle start before querying so Observations updated during the cycle are re-picked next cycle
+		// rather than skipped; it is only committed to the state once the query below succeeds.
+		Instant cycleStart = Instant.now();
 
-		IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
-				() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
+		List<String> subjectEntries;
+		try
+		{
+			IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
+					() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
 
-		ResearchStudy study = findStudy(client);
-		List<ResearchSubject> subjects = findSubjects(client, study);
+			ResearchStudy study = findStudy(client);
+			List<ResearchSubject> subjects = findSubjects(client, study);
 
-		List<String> subjectEntries = subjects.stream().map(this::toSubjectEntry).filter(Objects::nonNull).toList();
+			subjectEntries = subjects.stream().map(this::toSubjectEntry).filter(Objects::nonNull).toList();
+		}
+		catch (Exception exception)
+		{
+			// Whole-cycle isolation (Issue D): FHIR store / MEDIC down must not terminate the long-lived instance.
+			// Record
+			// an auditable error, run zero subject instances (empty list) so the loop falls straight through to the
+			// timer,
+			// and leave the watermark unadvanced so the tick is retried on the next interval.
+			logger.warn("ATMP cycle skipped: could not query research subjects from FHIR server '{}': {}", fhirServerId,
+					exception.getMessage(), exception);
+			AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
+			variables.setStringList(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_RESEARCH_SUBJECTS, List.of());
+			return;
+		}
+
+		advanceCycleState(variables, cycleStart);
 
 		logger.info("Found {} ResearchSubject(s) for ATMP study '{}' in FHIR server '{}'", subjectEntries.size(),
 				studyIdentifierValue, fhirServerId);
@@ -65,12 +87,12 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 	}
 
 	/**
-	 * Runs once at the start of every cycle: promotes the previous cycle's start time to the watermark and consumes a
-	 * one-shot force-bulk (both no-ops on the very first cycle, where no prior cycle start exists), then records this
-	 * cycle's start time. Recording the start <em>before</em> querying ensures Observations updated during the cycle
-	 * are re-picked next cycle rather than skipped.
+	 * Runs after a successful query at the start of every cycle: promotes the previous cycle's start time to the
+	 * watermark and consumes a one-shot force-bulk (both no-ops on the very first cycle, where no prior cycle start
+	 * exists), then records {@code cycleStart} (captured before the query). A skipped cycle does not call this, so its
+	 * watermark stays put and the tick is retried next interval.
 	 */
-	private void advanceCycleState(Variables variables)
+	private void advanceCycleState(Variables variables, Instant cycleStart)
 	{
 		String previousCycleStart = variables.getString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START);
 		if (previousCycleStart != null)
@@ -79,7 +101,7 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_FORCE_BULK, false);
 		}
 
-		variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START, Instant.now().toString());
+		variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START, cycleStart.toString());
 	}
 
 	private ResearchStudy findStudy(IGenericClient client)

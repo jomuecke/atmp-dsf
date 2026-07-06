@@ -42,6 +42,8 @@ public interface ConstantsAtmp
 	String BPMN_EXECUTION_VARIABLE_RESEARCH_SUBJECTS = "atmpResearchSubjects";
 	String BPMN_EXECUTION_VARIABLE_SUBJECT = "atmpSubject";
 	String BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE = "atmpSubjectBundle";
+	// Per multi-instance subject flag: true when creating the subject's bundle failed, so sending is skipped this cycle
+	String BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR = "atmpSubjectError";
 
 	// Entries of the atmpResearchSubjects list are "<patient-reference>|<pseudonym>"
 	String RESEARCH_SUBJECT_ENTRY_SEPARATOR = "|";

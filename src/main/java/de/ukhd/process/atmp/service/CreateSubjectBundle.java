@@ -16,6 +16,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import de.ukhd.process.atmp.ConstantsAtmp;
+import de.ukhd.process.atmp.audit.AuditLog;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.variables.SubjectEntry;
 import dev.dsf.bpe.v2.ProcessPluginApi;
@@ -57,19 +58,38 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 		SubjectEntry subject = SubjectEntry.parse(variables.getString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT));
 		String pseudonym = subject.pseudonym();
 
-		Optional<Instant> lowerBound = observationBundleFactory.queryLowerBound(pseudonym, watermark(variables),
-				seenSubjects(variables), forceBulk(variables));
+		// Reset the per-subject error flag for this multi-instance iteration (process variables persist across
+		// instances)
+		variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, false);
 
-		IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
-				() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
+		try
+		{
+			Optional<Instant> lowerBound = observationBundleFactory.queryLowerBound(pseudonym, watermark(variables),
+					seenSubjects(variables), forceBulk(variables));
 
-		List<Observation> observations = findObservations(client, subject.patientReference(), lowerBound);
-		Bundle bundle = observationBundleFactory.createFrom(observations, pseudonym);
+			IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
+					() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
 
-		logger.info("Created collection bundle with {} Observation(s) for subject with pseudonym '{}' ({} query)",
-				bundle.getEntry().size(), pseudonym, lowerBound.isPresent() ? "incremental" : "full");
+			List<Observation> observations = findObservations(client, subject.patientReference(), lowerBound);
+			Bundle bundle = observationBundleFactory.createFrom(observations, pseudonym);
 
-		variables.setFhirResource(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE, bundle);
+			logger.info("Created collection bundle with {} Observation(s) for subject with pseudonym '{}' ({} query)",
+					bundle.getEntry().size(), pseudonym, lowerBound.isPresent() ? "incremental" : "full");
+
+			variables.setFhirResource(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE, bundle);
+		}
+		catch (Exception exception)
+		{
+			// Per-subject isolation (Issue D): a bad subject must not abort the cycle. Record an auditable error on the
+			// start Task, flag the subject as failed so SendToMedic skips it, and continue with the next subject. State
+			// is
+			// not advanced (subject stays unseen), so it is retried in full next cycle.
+			logger.warn("Failed creating bundle for subject with pseudonym '{}': {}", pseudonym, exception.getMessage(),
+					exception);
+			AuditLog.appendError(api, variables,
+					AuditLog.subjectError(pseudonym, subject.patientReference(), exception, Instant.now()));
+			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, true);
+		}
 	}
 
 	private Instant watermark(Variables variables)

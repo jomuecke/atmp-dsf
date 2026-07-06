@@ -1,0 +1,111 @@
+package de.ukhd.process.atmp.audit;
+
+import java.time.Instant;
+import java.util.Objects;
+
+import org.hl7.fhir.r4.model.CodeableConcept;
+import org.hl7.fhir.r4.model.Coding;
+import org.hl7.fhir.r4.model.StringType;
+import org.hl7.fhir.r4.model.Task;
+
+import de.ukhd.process.atmp.ConstantsAtmp;
+import dev.dsf.bpe.v2.ProcessPluginApi;
+import dev.dsf.bpe.v2.variables.Variables;
+
+/**
+ * Builds and persists per-cycle audit entries for the ATMP data transfer (Issue&nbsp;D). Failures are appended as
+ * {@code error}-coded {@link Task} outputs on the long-lived start Task so an operator can audit which subject/cycle
+ * failed, why and when.
+ *
+ * <p>
+ * Messages are deliberately built from the ATMP pseudonym, the exception type/message and a timestamp only. The local
+ * patient identity is redacted (see {@link #subjectError(String, String, Throwable, Instant)}) and the MEDIC API key
+ * never appears in any exception (it is sent as a request header, never echoed).
+ */
+public final class AuditLog
+{
+	private AuditLog()
+	{
+	}
+
+	/**
+	 * Audit line for a single subject's failure:
+	 * {@code "[<timestamp>] subject <pseudonym>: <ExceptionClass>: <message>"}. Any occurrence of the local
+	 * {@code patientReference} in the exception message (e.g. a FHIR search URL) is redacted to
+	 * {@code Patient/<pseudonym>} so the local patient identity does not leak into the auditable output.
+	 *
+	 * @param pseudonym
+	 *            the subject's ATMP pseudonym, not <code>null</code>
+	 * @param patientReference
+	 *            the local patient reference to redact, or <code>null</code> for none
+	 * @param cause
+	 *            the failure, not <code>null</code>
+	 * @param timestamp
+	 *            when the failure occurred, not <code>null</code>
+	 */
+	public static String subjectError(String pseudonym, String patientReference, Throwable cause, Instant timestamp)
+	{
+		Objects.requireNonNull(pseudonym, "pseudonym");
+		Objects.requireNonNull(cause, "cause");
+		Objects.requireNonNull(timestamp, "timestamp");
+
+		String message = redact(safeMessage(cause), patientReference, pseudonym);
+		return "[" + timestamp + "] subject " + pseudonym + ": " + cause.getClass().getSimpleName() + ": " + message;
+	}
+
+	/**
+	 * Audit line for a whole-cycle failure (FHIR store / MEDIC unreachable):
+	 * {@code "[<timestamp>] cycle skipped: <ExceptionClass>: <message>"}. Contains configuration/URL detail only, never
+	 * a patient identity.
+	 */
+	public static String cycleError(Throwable cause, Instant timestamp)
+	{
+		Objects.requireNonNull(cause, "cause");
+		Objects.requireNonNull(timestamp, "timestamp");
+
+		return "[" + timestamp + "] cycle skipped: " + cause.getClass().getSimpleName() + ": " + safeMessage(cause);
+	}
+
+	/**
+	 * Appends {@code message} as an {@code error}-coded output on the process' start Task and persists the change.
+	 */
+	public static void appendError(ProcessPluginApi api, Variables variables, String message)
+	{
+		Objects.requireNonNull(api, "api");
+		Objects.requireNonNull(variables, "variables");
+		Objects.requireNonNull(message, "message");
+
+		Task startTask = variables.getStartTask();
+
+		startTask
+				.addOutput(new Task.TaskOutputComponent(
+						new CodeableConcept().addCoding(new Coding(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER,
+								ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_ERROR, null)),
+						new StringType(message)));
+
+		variables.updateTask(startTask);
+	}
+
+	private static String safeMessage(Throwable cause)
+	{
+		return cause.getMessage() == null ? "" : cause.getMessage();
+	}
+
+	private static String redact(String message, String patientReference, String pseudonym)
+	{
+		if (patientReference == null || patientReference.isBlank())
+			return message;
+
+		// Redact both the full reference (e.g. a "patient=Patient/<id>" search URL) and the bare logical id, which can
+		// surface on its own or inside a URL-encoded reference. Biased towards over-redaction: pseudonymization safety
+		// beats a slightly noisier audit message.
+		String redacted = message.replace(patientReference, "Patient/" + pseudonym);
+
+		int lastSlash = patientReference.lastIndexOf('/');
+		String bareId = lastSlash >= 0 ? patientReference.substring(lastSlash + 1) : patientReference;
+		if (!bareId.isBlank())
+			redacted = redacted.replace(bareId, pseudonym);
+
+		return redacted;
+	}
+}
