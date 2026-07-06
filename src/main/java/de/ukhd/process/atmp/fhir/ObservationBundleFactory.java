@@ -1,8 +1,11 @@
 package de.ukhd.process.atmp.fhir;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import org.hl7.fhir.r4.model.Bundle;
@@ -25,11 +28,52 @@ public class ObservationBundleFactory
 	public static final String LOINC_SYSTEM = "http://loinc.org";
 
 	private final Set<String> loincCodes;
+	private final Duration watermarkBuffer;
 
 	public ObservationBundleFactory(Collection<String> loincCodes)
 	{
+		this(loincCodes, Duration.ZERO);
+	}
+
+	public ObservationBundleFactory(Collection<String> loincCodes, Duration watermarkBuffer)
+	{
 		Objects.requireNonNull(loincCodes, "loincCodes");
+		Objects.requireNonNull(watermarkBuffer, "watermarkBuffer");
 		this.loincCodes = Set.copyOf(loincCodes);
+		this.watermarkBuffer = watermarkBuffer;
+	}
+
+	/**
+	 * Decides the {@code Observation._lastUpdated} lower bound for querying a single subject's laboratory results:
+	 * {@link Optional#empty()} means a <b>full</b> (un-watermarked) query — everything for the subject — while a
+	 * present value means an <b>incremental</b> query for {@code _lastUpdated} greater than that instant.
+	 *
+	 * <p>
+	 * A full query is used when a full re-send is forced, when no cycle has completed yet (no watermark), or the first
+	 * time a subject is seen in this instance (bulk-on-first-sight, covers late enrollment). Otherwise the incremental
+	 * bound is the watermark minus the configured buffer, which absorbs BPE&harr;FHIR-store clock skew; any resulting
+	 * re-sends are harmless because MEDIC upserts by {@code Observation.id}.
+	 *
+	 * @param pseudonym
+	 *            the subject's ATMP pseudonym, not <code>null</code>
+	 * @param watermark
+	 *            start instant of the last completed cycle, or <code>null</code> if none completed yet
+	 * @param seenSubjects
+	 *            pseudonyms already handled in this instance, not <code>null</code>
+	 * @param forceBulk
+	 *            <code>true</code> to ignore the watermark and re-send everything
+	 * @return the incremental lower bound, or {@link Optional#empty()} for a full query
+	 */
+	public Optional<Instant> queryLowerBound(String pseudonym, Instant watermark, Collection<String> seenSubjects,
+			boolean forceBulk)
+	{
+		Objects.requireNonNull(pseudonym, "pseudonym");
+		Objects.requireNonNull(seenSubjects, "seenSubjects");
+
+		if (forceBulk || watermark == null || !seenSubjects.contains(pseudonym))
+			return Optional.empty();
+
+		return Optional.of(watermark.minus(watermarkBuffer));
 	}
 
 	public Bundle createFrom(List<Observation> observations, String pseudonym)

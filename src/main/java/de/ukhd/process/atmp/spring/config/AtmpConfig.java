@@ -1,5 +1,6 @@
 package de.ukhd.process.atmp.spring.config;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -14,6 +15,7 @@ import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.service.CreateSubjectBundle;
 import de.ukhd.process.atmp.service.QueryResearchSubjects;
 import de.ukhd.process.atmp.service.SendToMedic;
+import de.ukhd.process.atmp.service.SetTimer;
 import dev.dsf.bpe.v2.documentation.ProcessDocumentation;
 
 @Configuration
@@ -49,6 +51,16 @@ public class AtmpConfig
 	@Value("${de.ukhd.atmp.study.identifier.value:ATMP}")
 	private String studyIdentifierValue;
 
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "Default ISO-8601 timer interval used when the start Task has no timer-interval input", example = "PT1H")
+	@Value("${de.ukhd.atmp.timer.interval:PT1H}")
+	private String timerInterval;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "ISO-8601 duration subtracted from the watermark on incremental cycles to absorb BPE/FHIR-store clock skew; harmless overlap is absorbed by MEDIC's upsert-by-id", example = "PT1M")
+	@Value("${de.ukhd.atmp.watermark.buffer:PT1M}")
+	private String watermarkBuffer;
+
 	private List<String> loincCodeList()
 	{
 		if (loincCodes == null || loincCodes.isBlank())
@@ -68,7 +80,14 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public ObservationBundleFactory observationBundleFactory()
 	{
-		return new ObservationBundleFactory(loincCodeList());
+		return new ObservationBundleFactory(loincCodeList(), Duration.parse(watermarkBuffer));
+	}
+
+	@Bean
+	@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+	public SetTimer setTimer()
+	{
+		return new SetTimer(timerInterval);
 	}
 
 	@Bean

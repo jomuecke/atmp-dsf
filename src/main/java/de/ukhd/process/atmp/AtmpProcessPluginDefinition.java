@@ -48,10 +48,12 @@ public class AtmpProcessPluginDefinition implements ProcessPluginDefinition
 		var aDataTransfer = "fhir/ActivityDefinition/atmp-data-transfer.xml";
 		var cDataTransfer = "fhir/CodeSystem/atmp-data-transfer.xml";
 		var sStart = "fhir/StructureDefinition/task-atmp-data-transfer-start.xml";
+		var sStop = "fhir/StructureDefinition/task-atmp-data-transfer-stop.xml";
 		var tStart = "fhir/Task/task-atmp-data-transfer-start.xml";
+		var tStop = "fhir/Task/task-atmp-data-transfer-stop.xml";
 		var vDataTransfer = "fhir/ValueSet/atmp-data-transfer.xml";
 
 		return Map.of(ConstantsAtmp.PROCESS_NAME_FULL_ATMP_DATA_TRANSFER,
-				List.of(aDataTransfer, cDataTransfer, sStart, tStart, vDataTransfer));
+				List.of(aDataTransfer, cDataTransfer, sStart, sStop, tStart, tStop, vDataTransfer));
 	}
 }

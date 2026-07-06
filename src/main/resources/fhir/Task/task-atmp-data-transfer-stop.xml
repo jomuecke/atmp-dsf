@@ -1,10 +1,10 @@
 <Task xmlns="http://hl7.org/fhir">
 	<meta>
-		<profile value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-start|#{version}"/>
+		<profile value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-stop|#{version}"/>
 	</meta>
 	<identifier>
 		<system value="http://dsf.dev/sid/task-identifier"/>
-		<value value="http://ukhd.de/bpe/Process/atmpDataTransfer/#{version}/atmpDataTransferStart"/>
+		<value value="http://ukhd.de/bpe/Process/atmpDataTransfer/#{version}/atmpDataTransferStop"/>
 	</identifier>
 	<instantiatesCanonical value="http://ukhd.de/bpe/Process/atmpDataTransfer|#{version}" />
 	<status value="draft"/>
@@ -33,16 +33,6 @@
 				<code value="message-name"/>
 			</coding>
 		</type>
-		<valueString value="atmpDataTransferStart"/>
-	</input>
-	<input>
-		<type>
-			<coding>
-				<system value="http://ukhd.de/fhir/CodeSystem/atmp-data-transfer"/>
-				<version value="#{version}"/>
-				<code value="force-bulk"/>
-			</coding>
-		</type>
-		<valueBoolean value="false"/>
+		<valueString value="atmpDataTransferStop"/>
 	</input>
 </Task>

@@ -33,6 +33,11 @@
 		<definition value="First execution of the ATMP data transfer cycle at given time" />
 	</concept>
 	<concept>
+		<code value="force-bulk" />
+		<display value="Force Bulk" />
+		<definition value="Force a full (un-watermarked) re-send of every participant on the first cycle, then resume incremental" />
+	</concept>
+	<concept>
 		<code value="error" />
 		<display value="Error" />
 		<definition value="Error message describing a failed transfer for a study participant" />

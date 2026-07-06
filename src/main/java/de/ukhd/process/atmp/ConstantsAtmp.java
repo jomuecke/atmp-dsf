@@ -25,6 +25,7 @@ public interface ConstantsAtmp
 	String CODESYSTEM_ATMP_DATA_TRANSFER = "http://ukhd.de/fhir/CodeSystem/atmp-data-transfer";
 	String CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_TIMER_INTERVAL = "timer-interval";
 	String CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_FIRST_EXECUTION = "first-execution";
+	String CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_FORCE_BULK = "force-bulk";
 	String CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_ERROR = "error";
 
 	// Default cycle timer interval (ISO-8601 duration) when no Task input / env override is given
@@ -33,7 +34,10 @@ public interface ConstantsAtmp
 	// BPMN process variables carried across timer cycles
 	String BPMN_EXECUTION_VARIABLE_TIMER_INTERVAL = "atmpTimerInterval";
 	String BPMN_EXECUTION_VARIABLE_FORCE_BULK = "atmpForceBulk";
+	// ISO-8601 instant watermark = start time of the last completed cycle (incremental lower bound source)
 	String BPMN_EXECUTION_VARIABLE_WATERMARK = "atmpWatermark";
+	// ISO-8601 instant recorded at the start of the current cycle; promoted to the watermark next cycle
+	String BPMN_EXECUTION_VARIABLE_CYCLE_START = "atmpCycleStart";
 	String BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS = "atmpSeenSubjects";
 	String BPMN_EXECUTION_VARIABLE_RESEARCH_SUBJECTS = "atmpResearchSubjects";
 	String BPMN_EXECUTION_VARIABLE_SUBJECT = "atmpSubject";

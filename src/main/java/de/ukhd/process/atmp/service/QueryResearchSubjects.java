@@ -1,5 +1,6 @@
 package de.ukhd.process.atmp.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +48,8 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 	@Override
 	public void execute(ProcessPluginApi api, Variables variables) throws Exception
 	{
+		advanceCycleState(variables);
+
 		IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
 				() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
 
@@ -59,6 +62,24 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 				studyIdentifierValue, fhirServerId);
 
 		variables.setStringList(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_RESEARCH_SUBJECTS, subjectEntries);
+	}
+
+	/**
+	 * Runs once at the start of every cycle: promotes the previous cycle's start time to the watermark and consumes a
+	 * one-shot force-bulk (both no-ops on the very first cycle, where no prior cycle start exists), then records this
+	 * cycle's start time. Recording the start <em>before</em> querying ensures Observations updated during the cycle
+	 * are re-picked next cycle rather than skipped.
+	 */
+	private void advanceCycleState(Variables variables)
+	{
+		String previousCycleStart = variables.getString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START);
+		if (previousCycleStart != null)
+		{
+			variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_WATERMARK, previousCycleStart);
+			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_FORCE_BULK, false);
+		}
+
+		variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START, Instant.now().toString());
 	}
 
 	private ResearchStudy findStudy(IGenericClient client)

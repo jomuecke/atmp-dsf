@@ -4,7 +4,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.hl7.fhir.r4.model.Annotation;
 import org.hl7.fhir.r4.model.Bundle;
@@ -125,6 +129,40 @@ public class ObservationBundleFactoryTest
 
 		assertEquals(Bundle.BundleType.COLLECTION, bundle.getType());
 		assertTrue(bundle.getEntry().isEmpty());
+	}
+
+	// --- selection decision: full (bulk) vs incremental query ---
+
+	private static final Instant WATERMARK = Instant.parse("2026-06-01T12:00:00Z");
+	private final ObservationBundleFactory bufferedFactory = new ObservationBundleFactory(List.of("718-7"),
+			Duration.ofMinutes(1));
+
+	@Test
+	public void testFullQueryWhenNoWatermarkYet()
+	{
+		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, null, Set.of(PSEUDONYM), false));
+	}
+
+	@Test
+	public void testFullQueryOnFirstSightEvenWithWatermark()
+	{
+		// subject not yet in the seen-set -> full (bulk-on-first-sight, covers late enrollment)
+		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(), false));
+	}
+
+	@Test
+	public void testIncrementalQueryForSeenSubjectUsesWatermarkMinusBuffer()
+	{
+		Optional<Instant> lowerBound = bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(PSEUDONYM), false);
+
+		assertEquals(Optional.of(WATERMARK.minus(Duration.ofMinutes(1))), lowerBound);
+	}
+
+	@Test
+	public void testForceBulkOverridesWatermarkForSeenSubject()
+	{
+		// even a seen subject with a watermark is queried in full when force-bulk is set
+		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(PSEUDONYM), true));
 	}
 
 	private Observation labObservation(String id, String loincCode)
