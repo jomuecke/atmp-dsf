@@ -1,0 +1,442 @@
+{
+  "resourceType": "Bundle",
+  "id": "atmp-fhir-store-test-bundle-dic2",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "ResearchStudy/atmp-study",
+      "resource": {
+        "resourceType": "ResearchStudy",
+        "id": "atmp-study",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie"
+          ]
+        },
+        "identifier": [
+          {
+            "system": "https://ukhd.de/fhir/sid/research-study",
+            "value": "ATMP"
+          }
+        ],
+        "title": "ATMP Study",
+        "status": "active"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ResearchStudy/atmp-study"
+      }
+    },
+    {
+      "fullUrl": "Patient/0000765432",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "0000765432",
+        "identifier": [
+          {
+            "system": "https://ukhd.de/fhir/sid/ish-pid",
+            "value": "0000765432"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/0000765432"
+      }
+    },
+    {
+      "fullUrl": "Patient/0007654321",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "0007654321",
+        "identifier": [
+          {
+            "system": "https://ukhd.de/fhir/sid/ish-pid",
+            "value": "0007654321"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/0007654321"
+      }
+    },
+    {
+      "fullUrl": "Patient/0076543210",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "0076543210",
+        "identifier": [
+          {
+            "system": "https://ukhd.de/fhir/sid/ish-pid",
+            "value": "0076543210"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/0076543210"
+      }
+    },
+    {
+      "fullUrl": "ResearchSubject/atmp-subject-code-11",
+      "resource": {
+        "resourceType": "ResearchSubject",
+        "id": "atmp-subject-code-11",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "ANON"
+                }
+              ]
+            },
+            "system": "https://ukhd.de/fhir/sid/atmp-study-pseudonym",
+            "value": "code-11"
+          }
+        ],
+        "status": "on-study",
+        "study": {
+          "reference": "ResearchStudy/atmp-study"
+        },
+        "individual": {
+          "reference": "Patient/0000765432"
+        },
+        "period": {
+          "start": "2025-02-02"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ResearchSubject/atmp-subject-code-11"
+      }
+    },
+    {
+      "fullUrl": "ResearchSubject/atmp-subject-code-12",
+      "resource": {
+        "resourceType": "ResearchSubject",
+        "id": "atmp-subject-code-12",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "ANON"
+                }
+              ]
+            },
+            "system": "https://ukhd.de/fhir/sid/atmp-study-pseudonym",
+            "value": "code-12"
+          }
+        ],
+        "status": "on-study",
+        "study": {
+          "reference": "ResearchStudy/atmp-study"
+        },
+        "individual": {
+          "reference": "Patient/0007654321"
+        },
+        "period": {
+          "start": "2024-06-16"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ResearchSubject/atmp-subject-code-12"
+      }
+    },
+    {
+      "fullUrl": "ResearchSubject/atmp-subject-code-13",
+      "resource": {
+        "resourceType": "ResearchSubject",
+        "id": "atmp-subject-code-13",
+        "meta": {
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "ANON"
+                }
+              ]
+            },
+            "system": "https://ukhd.de/fhir/sid/atmp-study-pseudonym",
+            "value": "code-13"
+          }
+        ],
+        "status": "on-study",
+        "study": {
+          "reference": "ResearchStudy/atmp-study"
+        },
+        "individual": {
+          "reference": "Patient/0076543210"
+        },
+        "period": {
+          "start": "2023-03-03"
+        },
+        "consent": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+              "valueCode": "unknown"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ResearchSubject/atmp-subject-code-13"
+      }
+    },
+    {
+      "fullUrl": "Observation/MRI-2507011111-2025-07-01-1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "MRI-2507011111-2025-07-01-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-07-01T14:40:00+01:00",
+          "source": "#mri0000000000001",
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "OBI"
+                }
+              ]
+            },
+            "system": "1.2.276.0.76.3.1.78.1.1.10.70.3.1",
+            "value": "MRI-2507011111-2025-07-01-1",
+            "assigner": {
+              "identifier": {
+                "system": "https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier",
+                "value": "MRI"
+              }
+            }
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "26436-6"
+              },
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/0000765432"
+        },
+        "effectiveDateTime": "2025-07-01T12:40:00+01:00",
+        "valueQuantity": {
+          "value": 5.11,
+          "unit": "/nl",
+          "system": "http://unitsofmeasure.org",
+          "code": "/nl"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/MRI-2507011111-2025-07-01-1"
+      }
+    },
+    {
+      "fullUrl": "Observation/MRI-2508022222-2025-08-02-2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "MRI-2508022222-2025-08-02-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-08-02T19:49:00+01:00",
+          "source": "#mri0000000000002",
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "OBI"
+                }
+              ]
+            },
+            "system": "1.2.276.0.76.3.1.78.1.1.10.70.3.1",
+            "value": "MRI-2508022222-2025-08-02-2",
+            "assigner": {
+              "identifier": {
+                "system": "https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier",
+                "value": "MRI"
+              }
+            }
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "26436-6"
+              },
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/0007654321"
+        },
+        "effectiveDateTime": "2025-08-02T17:49:00+01:00",
+        "valueQuantity": {
+          "value": 14.2,
+          "unit": "g/dl",
+          "system": "http://unitsofmeasure.org",
+          "code": "g/dl"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/MRI-2508022222-2025-08-02-2"
+      }
+    },
+    {
+      "fullUrl": "Observation/MRI-2509033333-2025-09-03-3",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "MRI-2509033333-2025-09-03-3",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2025-09-03T15:40:00+01:00",
+          "source": "#mri0000000000003",
+          "profile": [
+            "https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab"
+          ]
+        },
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "OBI"
+                }
+              ]
+            },
+            "system": "1.2.276.0.76.3.1.78.1.1.10.70.3.1",
+            "value": "MRI-2509033333-2025-09-03-3",
+            "assigner": {
+              "identifier": {
+                "system": "https://www.medizininformatik-initiative.de/fhir/core/CodeSystem/core-location-identifier",
+                "value": "MRI"
+              }
+            }
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "26436-6"
+              },
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "777-3"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/0076543210"
+        },
+        "effectiveDateTime": "2025-09-03T13:40:00+01:00",
+        "valueQuantity": {
+          "value": 402.0,
+          "unit": "/nl",
+          "system": "http://unitsofmeasure.org",
+          "code": "/nl"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/MRI-2509033333-2025-09-03-3"
+      }
+    }
+  ]
+}
