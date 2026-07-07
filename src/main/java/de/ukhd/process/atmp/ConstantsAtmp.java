@@ -33,6 +33,7 @@ public interface ConstantsAtmp
 
 	// BPMN process variables carried across timer cycles
 	String BPMN_EXECUTION_VARIABLE_TIMER_INTERVAL = "atmpTimerInterval";
+	String BPMN_EXECUTION_VARIABLE_DUPLICATE_START = "atmpDuplicateStart";
 	String BPMN_EXECUTION_VARIABLE_FORCE_BULK = "atmpForceBulk";
 	// ISO-8601 instant watermark = start time of the last completed cycle (incremental lower bound source)
 	String BPMN_EXECUTION_VARIABLE_WATERMARK = "atmpWatermark";

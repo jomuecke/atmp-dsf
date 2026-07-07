@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import org.operaton.bpm.engine.RuntimeService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +15,7 @@ import de.ukhd.process.atmp.client.MedicClient;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.service.CreateSubjectBundle;
 import de.ukhd.process.atmp.service.QueryResearchSubjects;
+import de.ukhd.process.atmp.service.RejectDuplicateStart;
 import de.ukhd.process.atmp.service.SendToMedic;
 import de.ukhd.process.atmp.service.SetTimer;
 import dev.dsf.bpe.v2.documentation.ProcessDocumentation;
@@ -81,6 +83,13 @@ public class AtmpConfig
 	public ObservationBundleFactory observationBundleFactory()
 	{
 		return new ObservationBundleFactory(loincCodeList(), Duration.parse(watermarkBuffer));
+	}
+
+	@Bean
+	@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+	public RejectDuplicateStart rejectDuplicateStart(RuntimeService runtimeService)
+	{
+		return new RejectDuplicateStart(runtimeService);
 	}
 
 	@Bean

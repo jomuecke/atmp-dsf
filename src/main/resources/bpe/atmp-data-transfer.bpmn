@@ -4,11 +4,23 @@
   <bpmn:message id="Message_atmpDataTransferStop" name="atmpDataTransferStop" />
   <bpmn:process id="ukhdde_atmpDataTransfer" isExecutable="true" camunda:versionTag="#{version}">
     <bpmn:startEvent id="StartEvent_atmpDataTransfer" name="start ATMP data transfer">
-      <bpmn:outgoing>Flow_start_to_setTimer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_start_to_rejectDuplicateStart</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MessageEventDefinition_atmpDataTransferStart" messageRef="Message_atmpDataTransferStart" />
     </bpmn:startEvent>
+    <bpmn:serviceTask id="Activity_rejectDuplicateStart" name="reject duplicate start" camunda:class="de.ukhd.process.atmp.service.RejectDuplicateStart">
+      <bpmn:incoming>Flow_start_to_rejectDuplicateStart</bpmn:incoming>
+      <bpmn:outgoing>Flow_rejectDuplicateStart_to_duplicateStartGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_duplicateStart" name="duplicate start?" default="Flow_duplicateStartGateway_to_setTimer">
+      <bpmn:incoming>Flow_rejectDuplicateStart_to_duplicateStartGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_duplicateStartGateway_to_rejected</bpmn:outgoing>
+      <bpmn:outgoing>Flow_duplicateStartGateway_to_setTimer</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_duplicateStartRejected" name="duplicate start rejected">
+      <bpmn:incoming>Flow_duplicateStartGateway_to_rejected</bpmn:incoming>
+    </bpmn:endEvent>
     <bpmn:serviceTask id="Activity_setTimer" name="set timer" camunda:class="de.ukhd.process.atmp.service.SetTimer">
-      <bpmn:incoming>Flow_start_to_setTimer</bpmn:incoming>
+      <bpmn:incoming>Flow_duplicateStartGateway_to_setTimer</bpmn:incoming>
       <bpmn:outgoing>Flow_setTimer_to_query</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:serviceTask id="Activity_queryResearchSubjects" name="query research subjects" camunda:class="de.ukhd.process.atmp.service.QueryResearchSubjects">
@@ -55,7 +67,12 @@
       </bpmn:endEvent>
       <bpmn:sequenceFlow id="Flow_stop_to_stopped" sourceRef="StartEvent_atmpDataTransferStop" targetRef="EndEvent_atmpDataTransferStopped" />
     </bpmn:subProcess>
-    <bpmn:sequenceFlow id="Flow_start_to_setTimer" sourceRef="StartEvent_atmpDataTransfer" targetRef="Activity_setTimer" />
+    <bpmn:sequenceFlow id="Flow_start_to_rejectDuplicateStart" sourceRef="StartEvent_atmpDataTransfer" targetRef="Activity_rejectDuplicateStart" />
+    <bpmn:sequenceFlow id="Flow_rejectDuplicateStart_to_duplicateStartGateway" sourceRef="Activity_rejectDuplicateStart" targetRef="Gateway_duplicateStart" />
+    <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_rejected" sourceRef="Gateway_duplicateStart" targetRef="EndEvent_duplicateStartRejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${atmpDuplicateStart}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_setTimer" sourceRef="Gateway_duplicateStart" targetRef="Activity_setTimer" />
     <bpmn:sequenceFlow id="Flow_setTimer_to_query" sourceRef="Activity_setTimer" targetRef="Activity_queryResearchSubjects" />
     <bpmn:sequenceFlow id="Flow_query_to_subprocess" sourceRef="Activity_queryResearchSubjects" targetRef="Activity_perSubject" />
     <bpmn:sequenceFlow id="Flow_subprocess_to_timer" sourceRef="Activity_perSubject" targetRef="Event_timerInterval" />
@@ -66,42 +83,63 @@
       <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="StartEvent_atmpDataTransfer">
         <dc:Bounds x="152" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_setTimer" bpmnElement="Activity_setTimer">
+      <bpmndi:BPMNShape id="BPMNShape_rejectDuplicateStart" bpmnElement="Activity_rejectDuplicateStart">
         <dc:Bounds x="240" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_duplicateStartGateway" bpmnElement="Gateway_duplicateStart" isMarkerVisible="true">
+        <dc:Bounds x="365" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_duplicateStartRejected" bpmnElement="EndEvent_duplicateStartRejected">
+        <dc:Bounds x="372" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_setTimer" bpmnElement="Activity_setTimer">
+        <dc:Bounds x="470" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_query" bpmnElement="Activity_queryResearchSubjects">
-        <dc:Bounds x="390" y="160" width="100" height="80" />
+        <dc:Bounds x="620" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_subprocess" bpmnElement="Activity_perSubject" isExpanded="true">
-        <dc:Bounds x="550" y="80" width="520" height="240" />
+        <dc:Bounds x="780" y="80" width="520" height="240" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_timer" bpmnElement="Event_timerInterval">
-        <dc:Bounds x="1132" y="182" width="36" height="36" />
+        <dc:Bounds x="1362" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_stopSubProcess" bpmnElement="EventSubProcess_stop" isExpanded="true">
         <dc:Bounds x="240" y="360" width="300" height="140" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="BPMNEdge_start_setTimer" bpmnElement="Flow_start_to_setTimer">
+      <bpmndi:BPMNEdge id="BPMNEdge_start_rejectDuplicateStart" bpmnElement="Flow_start_to_rejectDuplicateStart">
         <di:waypoint x="188" y="200" />
         <di:waypoint x="240" y="200" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="BPMNEdge_setTimer_query" bpmnElement="Flow_setTimer_to_query">
+      <bpmndi:BPMNEdge id="BPMNEdge_rejectDuplicateStart_duplicateStartGateway" bpmnElement="Flow_rejectDuplicateStart_to_duplicateStartGateway">
         <di:waypoint x="340" y="200" />
-        <di:waypoint x="390" y="200" />
+        <di:waypoint x="365" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_duplicateStartGateway_rejected" bpmnElement="Flow_duplicateStartGateway_to_rejected">
+        <di:waypoint x="390" y="225" />
+        <di:waypoint x="390" y="282" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_duplicateStartGateway_setTimer" bpmnElement="Flow_duplicateStartGateway_to_setTimer">
+        <di:waypoint x="415" y="200" />
+        <di:waypoint x="470" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_setTimer_query" bpmnElement="Flow_setTimer_to_query">
+        <di:waypoint x="570" y="200" />
+        <di:waypoint x="620" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_query_subprocess" bpmnElement="Flow_query_to_subprocess">
-        <di:waypoint x="490" y="200" />
-        <di:waypoint x="550" y="200" />
+        <di:waypoint x="720" y="200" />
+        <di:waypoint x="780" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_subprocess_timer" bpmnElement="Flow_subprocess_to_timer">
-        <di:waypoint x="1070" y="200" />
-        <di:waypoint x="1132" y="200" />
+        <di:waypoint x="1300" y="200" />
+        <di:waypoint x="1362" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_timer_query" bpmnElement="Flow_timer_to_query">
-        <di:waypoint x="1150" y="182" />
-        <di:waypoint x="1150" y="40" />
-        <di:waypoint x="440" y="40" />
-        <di:waypoint x="440" y="160" />
+        <di:waypoint x="1380" y="182" />
+        <di:waypoint x="1380" y="40" />
+        <di:waypoint x="670" y="40" />
+        <di:waypoint x="670" y="160" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

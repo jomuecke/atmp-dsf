@@ -72,6 +72,21 @@ public class AtmpProcessPluginDefinitionTest
 		});
 
 		assertEquals(1.0, (Double) xpath.evaluate(
+				"count(//bpmn:serviceTask[@id='Activity_rejectDuplicateStart' and @camunda:class='de.ukhd.process.atmp.service.RejectDuplicateStart'])",
+				document, XPathConstants.NUMBER), 0.0);
+		assertEquals("Activity_rejectDuplicateStart", xpath.evaluate(
+				"string(//bpmn:sequenceFlow[@id='Flow_start_to_rejectDuplicateStart']/@targetRef)", document));
+		assertEquals("Gateway_duplicateStart", xpath.evaluate(
+				"string(//bpmn:sequenceFlow[@id='Flow_rejectDuplicateStart_to_duplicateStartGateway']/@targetRef)",
+				document));
+		assertEquals("Flow_duplicateStartGateway_to_setTimer",
+				xpath.evaluate("string(//bpmn:exclusiveGateway[@id='Gateway_duplicateStart']/@default)", document));
+		assertEquals("${atmpDuplicateStart}", xpath.evaluate(
+				"string(//bpmn:sequenceFlow[@id='Flow_duplicateStartGateway_to_rejected']/bpmn:conditionExpression)",
+				document));
+		assertEquals("Activity_setTimer", xpath.evaluate(
+				"string(//bpmn:sequenceFlow[@id='Flow_duplicateStartGateway_to_setTimer']/@targetRef)", document));
+		assertEquals(1.0, (Double) xpath.evaluate(
 				"count(//bpmn:serviceTask[@id='Activity_setTimer' and @camunda:class='de.ukhd.process.atmp.service.SetTimer'])",
 				document, XPathConstants.NUMBER), 0.0);
 		assertEquals("${atmpTimerInterval}", xpath.evaluate(
@@ -84,10 +99,9 @@ public class AtmpProcessPluginDefinitionTest
 		assertEquals(1.0, (Double) xpath.evaluate(
 				"count(//bpmn:subProcess[@id='EventSubProcess_stop' and @triggeredByEvent='true']/bpmn:startEvent[@isInterrupting='true']/bpmn:messageEventDefinition[@messageRef='Message_atmpDataTransferStop'])",
 				document, XPathConstants.NUMBER), 0.0);
-		assertEquals(0.0,
-				(Double) xpath.evaluate("count(//bpmn:process/bpmn:endEvent[@id='EndEvent_atmpDataTransfer'])",
-						document, XPathConstants.NUMBER),
-				0.0);
+		assertEquals(0.0, (Double) xpath.evaluate(
+				"count(//bpmn:sequenceFlow[@sourceRef='Event_timerInterval' and @targetRef='EndEvent_duplicateStartRejected'])",
+				document, XPathConstants.NUMBER), 0.0);
 	}
 
 	private boolean exists(String file)
