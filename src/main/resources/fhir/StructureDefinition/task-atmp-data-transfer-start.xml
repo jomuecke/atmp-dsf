@@ -29,7 +29,7 @@
 		<element id="Task.input">
 			<path value="Task.input" />
 			<min value="1" />
-			<max value="4" />
+			<max value="3" />
 		</element>
 		<element id="Task.input:message-name">
 			<path value="Task.input" />
@@ -91,47 +91,11 @@
 				<key value="timer-interval-regex" />
 				<severity value="error" />
 				<human value="Must be ISO 8601 time duration pattern" />
-				<expression value="matches(&#39;^P(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?(T(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?$&#39;)" />
+				<!-- Mirrors what java.time.Duration.parse accepts (days/hours/minutes/seconds, no years/months) and
+				     requires at least one component, so bare "P"/"PT" and calendar units are rejected here instead of
+				     failing later in the SetTimer service -->
+				<expression value="matches(&#39;^P(?=.)(?:[0-9]+D)?(?:T(?=.)(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:[.,][0-9]{1,9})?S)?)?$&#39;)" />
 			</constraint>
-		</element>
-		<element id="Task.input:force-bulk">
-			<path value="Task.input" />
-			<sliceName value="force-bulk" />
-			<min value="0" />
-			<max value="1" />
-		</element>
-		<element id="Task.input:force-bulk.type">
-			<path value="Task.input.type" />
-			<binding>
-				<strength value="required" />
-				<valueSet value="http://ukhd.de/fhir/ValueSet/atmp-data-transfer|#{version}" />
-			</binding>
-		</element>
-		<element id="Task.input:force-bulk.type.coding">
-			<path value="Task.input.type.coding" />
-			<min value="1" />
-			<max value="1" />
-		</element>
-		<element id="Task.input:force-bulk.type.coding.system">
-			<path value="Task.input.type.coding.system" />
-			<min value="1" />
-			<fixedUri value="http://ukhd.de/fhir/CodeSystem/atmp-data-transfer" />
-		</element>
-		<element id="Task.input:force-bulk.type.coding.version">
-			<path value="Task.input.type.coding.version" />
-			<min value="1" />
-			<fixedString value="#{version}" />
-		</element>
-		<element id="Task.input:force-bulk.type.coding.code">
-			<path value="Task.input.type.coding.code" />
-			<min value="1" />
-			<fixedCode value="force-bulk" />
-		</element>
-		<element id="Task.input:force-bulk.value[x]">
-			<path value="Task.input.value[x]" />
-			<type>
-				<code value="boolean" />
-			</type>
 		</element>
 	</differential>
 </StructureDefinition>

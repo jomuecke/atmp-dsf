@@ -140,29 +140,22 @@ public class ObservationBundleFactoryTest
 	@Test
 	public void testFullQueryWhenNoWatermarkYet()
 	{
-		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, null, Set.of(PSEUDONYM), false));
+		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, null, Set.of(PSEUDONYM)));
 	}
 
 	@Test
 	public void testFullQueryOnFirstSightEvenWithWatermark()
 	{
 		// subject not yet in the seen-set -> full (bulk-on-first-sight, covers late enrollment)
-		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(), false));
+		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of()));
 	}
 
 	@Test
 	public void testIncrementalQueryForSeenSubjectUsesWatermarkMinusBuffer()
 	{
-		Optional<Instant> lowerBound = bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(PSEUDONYM), false);
+		Optional<Instant> lowerBound = bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(PSEUDONYM));
 
 		assertEquals(Optional.of(WATERMARK.minus(Duration.ofMinutes(1))), lowerBound);
-	}
-
-	@Test
-	public void testForceBulkOverridesWatermarkForSeenSubject()
-	{
-		// even a seen subject with a watermark is queried in full when force-bulk is set
-		assertEquals(Optional.empty(), bufferedFactory.queryLowerBound(PSEUDONYM, WATERMARK, Set.of(PSEUDONYM), true));
 	}
 
 	private Observation labObservation(String id, String loincCode)

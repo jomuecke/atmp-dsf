@@ -24,6 +24,13 @@ import dev.dsf.bpe.v2.variables.Variables;
  */
 public final class AuditLog
 {
+	/**
+	 * Maximum number of {@code error} outputs kept on the start Task. The Task lives as long as the loop; without a
+	 * cap, a persistent failure on an hourly timer would grow it without bound. When full, the oldest entries are
+	 * dropped in favor of the newest.
+	 */
+	public static final int MAX_ERROR_OUTPUTS = 20;
+
 	private AuditLog()
 	{
 	}
@@ -67,7 +74,8 @@ public final class AuditLog
 	}
 
 	/**
-	 * Appends {@code message} as an {@code error}-coded output on the process' start Task and persists the change.
+	 * Appends {@code message} as an {@code error}-coded output on the process' start Task and persists the change,
+	 * keeping at most {@link #MAX_ERROR_OUTPUTS} error outputs (oldest dropped first).
 	 */
 	public static void appendError(ProcessPluginApi api, Variables variables, String message)
 	{
@@ -76,14 +84,43 @@ public final class AuditLog
 		Objects.requireNonNull(message, "message");
 
 		Task startTask = variables.getStartTask();
+		appendErrorOutput(startTask, message);
+		variables.updateTask(startTask);
+	}
 
-		startTask
-				.addOutput(new Task.TaskOutputComponent(
+	/**
+	 * Appends {@code message} as an {@code error}-coded output on {@code task}, dropping the oldest error outputs so at
+	 * most {@link #MAX_ERROR_OUTPUTS} remain. Outputs with other codes are never touched.
+	 */
+	static void appendErrorOutput(Task task, String message)
+	{
+		task.addOutput(
+				new Task.TaskOutputComponent(
 						new CodeableConcept().addCoding(new Coding(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER,
 								ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_ERROR, null)),
 						new StringType(message)));
 
-		variables.updateTask(startTask);
+		long errorCount = task.getOutput().stream().filter(AuditLog::isErrorOutput).count();
+		long toDrop = errorCount - MAX_ERROR_OUTPUTS;
+		if (toDrop > 0)
+		{
+			var iterator = task.getOutput().iterator();
+			while (toDrop > 0 && iterator.hasNext())
+			{
+				if (isErrorOutput(iterator.next()))
+				{
+					iterator.remove();
+					toDrop--;
+				}
+			}
+		}
+	}
+
+	private static boolean isErrorOutput(Task.TaskOutputComponent output)
+	{
+		return output.getType().getCoding().stream()
+				.anyMatch(c -> ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER.equals(c.getSystem())
+						&& ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_ERROR.equals(c.getCode()));
 	}
 
 	private static String safeMessage(Throwable cause)

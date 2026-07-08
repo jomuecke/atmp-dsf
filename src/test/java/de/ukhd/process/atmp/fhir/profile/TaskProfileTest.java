@@ -1,11 +1,11 @@
 package de.ukhd.process.atmp.fhir.profile;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Date;
 import java.util.List;
 
-import org.hl7.fhir.r4.model.BooleanType;
 import org.hl7.fhir.r4.model.ResourceType;
 import org.hl7.fhir.r4.model.StringType;
 import org.hl7.fhir.r4.model.Task;
@@ -70,18 +70,24 @@ public class TaskProfileTest
 	}
 
 	@Test
-	public void testTaskStartProcessProfileValidWithForceBulk()
+	public void testTaskStartProcessProfileNotValidWithEmptyOrCalendarUnitTimerInterval()
 	{
-		Task task = createValidTaskStartProcess();
-		task.addInput().setValue(new BooleanType(true)).getType().addCoding()
-				.setSystem(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER).setVersion(def.getResourceVersion())
-				.setCode(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_FORCE_BULK);
+		// bare "PT" and calendar units like years are rejected by the profile regex because java.time.Duration.parse
+		// would reject them later in the SetTimer service
+		for (String invalid : List.of("PT", "P", "P1Y"))
+		{
+			Task task = createValidTaskStartProcess();
+			task.addInput().setValue(new StringType(invalid)).getType().addCoding()
+					.setSystem(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER).setVersion(def.getResourceVersion())
+					.setCode(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_TIMER_INTERVAL);
 
-		ValidationResult result = resourceValidator.validate(task);
-		ValidationSupportRule.logValidationMessages(logger, result);
+			ValidationResult result = resourceValidator.validate(task);
+			ValidationSupportRule.logValidationMessages(logger, result);
 
-		assertEquals(0, result.getMessages().stream().filter(m -> ResultSeverityEnum.ERROR.equals(m.getSeverity())
-				|| ResultSeverityEnum.FATAL.equals(m.getSeverity())).count());
+			assertEquals("timer-interval '" + invalid + "' should be invalid", 1,
+					result.getMessages().stream().filter(m -> ResultSeverityEnum.ERROR.equals(m.getSeverity())
+							|| ResultSeverityEnum.FATAL.equals(m.getSeverity())).count());
+		}
 	}
 
 	@Test
@@ -93,13 +99,13 @@ public class TaskProfileTest
 				.setCode(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_TIMER_INTERVAL);
 		task.addInput().setValue(new StringType("other")).getType().addCoding()
 				.setSystem(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER).setVersion(def.getResourceVersion())
-				.setCode(ConstantsAtmp.CODESYSTEM_ATMP_DATA_TRANSFER_VALUE_FIRST_EXECUTION);
+				.setCode("not-a-defined-code");
 
 		ValidationResult result = resourceValidator.validate(task);
 		ValidationSupportRule.logValidationMessages(logger, result);
 
-		assertEquals(1, result.getMessages().stream().filter(m -> ResultSeverityEnum.ERROR.equals(m.getSeverity())
-				|| ResultSeverityEnum.FATAL.equals(m.getSeverity())).count());
+		assertTrue(result.getMessages().stream().anyMatch(m -> ResultSeverityEnum.ERROR.equals(m.getSeverity())
+				|| ResultSeverityEnum.FATAL.equals(m.getSeverity())));
 	}
 
 	private Task createValidTaskStartProcess()

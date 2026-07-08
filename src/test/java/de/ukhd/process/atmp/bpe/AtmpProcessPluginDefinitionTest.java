@@ -96,9 +96,19 @@ public class AtmpProcessPluginDefinitionTest
 				xpath.evaluate("string(//bpmn:sequenceFlow[@id='Flow_subprocess_to_timer']/@targetRef)", document));
 		assertEquals("Activity_queryResearchSubjects",
 				xpath.evaluate("string(//bpmn:sequenceFlow[@id='Flow_timer_to_query']/@targetRef)", document));
+		// stop = message start event (new instance, no business-key correlation needed) broadcasting a signal that the
+		// interrupting signal event-subprocess of the running loop instance catches
 		assertEquals(1.0, (Double) xpath.evaluate(
-				"count(//bpmn:subProcess[@id='EventSubProcess_stop' and @triggeredByEvent='true']/bpmn:startEvent[@isInterrupting='true']/bpmn:messageEventDefinition[@messageRef='Message_atmpDataTransferStop'])",
+				"count(//bpmn:startEvent[@id='StartEvent_atmpDataTransferStop']/bpmn:messageEventDefinition[@messageRef='Message_atmpDataTransferStop'])",
 				document, XPathConstants.NUMBER), 0.0);
+		assertEquals(1.0, (Double) xpath.evaluate(
+				"count(//bpmn:endEvent[@id='EndEvent_stopSignalSent']/bpmn:signalEventDefinition[@signalRef='Signal_atmpDataTransferStop'])",
+				document, XPathConstants.NUMBER), 0.0);
+		assertEquals(1.0, (Double) xpath.evaluate(
+				"count(//bpmn:subProcess[@id='EventSubProcess_stop' and @triggeredByEvent='true']/bpmn:startEvent[@isInterrupting='true']/bpmn:signalEventDefinition[@signalRef='Signal_atmpDataTransferStop'])",
+				document, XPathConstants.NUMBER), 0.0);
+		assertEquals("stop_ukhdde_atmpDataTransfer_#{version}",
+				xpath.evaluate("string(//bpmn:signal[@id='Signal_atmpDataTransferStop']/@name)", document));
 		assertEquals(0.0, (Double) xpath.evaluate(
 				"count(//bpmn:sequenceFlow[@sourceRef='Event_timerInterval' and @targetRef='EndEvent_duplicateStartRejected'])",
 				document, XPathConstants.NUMBER), 0.0);

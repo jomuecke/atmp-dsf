@@ -35,14 +35,4 @@
 		</type>
 		<valueString value="atmpDataTransferStart"/>
 	</input>
-	<input>
-		<type>
-			<coding>
-				<system value="http://ukhd.de/fhir/CodeSystem/atmp-data-transfer"/>
-				<version value="#{version}"/>
-				<code value="force-bulk"/>
-			</coding>
-		</type>
-		<valueBoolean value="false"/>
-	</input>
 </Task>

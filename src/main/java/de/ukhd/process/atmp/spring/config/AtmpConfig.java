@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import org.operaton.bpm.engine.RuntimeService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
@@ -87,9 +86,9 @@ public class AtmpConfig
 
 	@Bean
 	@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-	public RejectDuplicateStart rejectDuplicateStart(RuntimeService runtimeService)
+	public RejectDuplicateStart rejectDuplicateStart()
 	{
-		return new RejectDuplicateStart(runtimeService);
+		return new RejectDuplicateStart();
 	}
 
 	@Bean

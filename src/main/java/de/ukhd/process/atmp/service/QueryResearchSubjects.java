@@ -88,19 +88,24 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 
 	/**
 	 * Runs after a successful query at the start of every cycle: promotes the previous cycle's start time to the
-	 * watermark and consumes a one-shot force-bulk (both no-ops on the very first cycle, where no prior cycle start
-	 * exists), then records {@code cycleStart} (captured before the query). A skipped cycle does not call this, so its
-	 * watermark stays put and the tick is retried next interval.
+	 * watermark (a no-op on the very first cycle, where no prior cycle start exists), then records {@code cycleStart}
+	 * (captured before the query). A skipped cycle does not call this, and after an aborted cycle (MEDIC unreachable
+	 * mid-cycle) the promotion is withheld, so the watermark stays put and the tick is retried next interval.
+	 * <p>
+	 * Promoting the <i>previous</i> cycle's start (instead of the completed cycle's own start) deliberately re-queries
+	 * one full interval of overlap each cycle: it is equivalent to advancing the watermark "after all subjects" while
+	 * keeping the advance in a single place, and re-sends are absorbed by MEDIC's upsert-by-id.
 	 */
 	private void advanceCycleState(Variables variables, Instant cycleStart)
 	{
+		boolean previousCycleAborted = Boolean.TRUE
+				.equals(variables.getBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED));
 		String previousCycleStart = variables.getString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START);
-		if (previousCycleStart != null)
-		{
-			variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_WATERMARK, previousCycleStart);
-			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_FORCE_BULK, false);
-		}
 
+		if (previousCycleStart != null && !previousCycleAborted)
+			variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_WATERMARK, previousCycleStart);
+
+		variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, false);
 		variables.setString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_START, cycleStart.toString());
 	}
 

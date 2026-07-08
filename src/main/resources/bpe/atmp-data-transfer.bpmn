@@ -2,6 +2,7 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_atmp_data_transfer" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.42.0">
   <bpmn:message id="Message_atmpDataTransferStart" name="atmpDataTransferStart" />
   <bpmn:message id="Message_atmpDataTransferStop" name="atmpDataTransferStop" />
+  <bpmn:signal id="Signal_atmpDataTransferStop" name="stop_ukhdde_atmpDataTransfer_#{version}" />
   <bpmn:process id="ukhdde_atmpDataTransfer" isExecutable="true" camunda:versionTag="#{version}">
     <bpmn:startEvent id="StartEvent_atmpDataTransfer" name="start ATMP data transfer">
       <bpmn:outgoing>Flow_start_to_rejectDuplicateStart</bpmn:outgoing>
@@ -58,15 +59,24 @@
       </bpmn:timerEventDefinition>
     </bpmn:intermediateCatchEvent>
     <bpmn:subProcess id="EventSubProcess_stop" name="stop ATMP data transfer" triggeredByEvent="true">
-      <bpmn:startEvent id="StartEvent_atmpDataTransferStop" name="stop ATMP data transfer" isInterrupting="true">
+      <bpmn:startEvent id="StartEvent_stopSignal" name="stop signal received" isInterrupting="true">
         <bpmn:outgoing>Flow_stop_to_stopped</bpmn:outgoing>
-        <bpmn:messageEventDefinition id="MessageEventDefinition_atmpDataTransferStop" messageRef="Message_atmpDataTransferStop" />
+        <bpmn:signalEventDefinition id="SignalEventDefinition_stopCatch" signalRef="Signal_atmpDataTransferStop" />
       </bpmn:startEvent>
       <bpmn:endEvent id="EndEvent_atmpDataTransferStopped" name="stopped">
         <bpmn:incoming>Flow_stop_to_stopped</bpmn:incoming>
       </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Flow_stop_to_stopped" sourceRef="StartEvent_atmpDataTransferStop" targetRef="EndEvent_atmpDataTransferStopped" />
+      <bpmn:sequenceFlow id="Flow_stop_to_stopped" sourceRef="StartEvent_stopSignal" targetRef="EndEvent_atmpDataTransferStopped" />
     </bpmn:subProcess>
+    <bpmn:startEvent id="StartEvent_atmpDataTransferStop" name="stop ATMP data transfer">
+      <bpmn:outgoing>Flow_stopStart_to_stopSignalThrow</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_atmpDataTransferStop" messageRef="Message_atmpDataTransferStop" />
+    </bpmn:startEvent>
+    <bpmn:endEvent id="EndEvent_stopSignalSent" name="stop signal sent">
+      <bpmn:incoming>Flow_stopStart_to_stopSignalThrow</bpmn:incoming>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_stopThrow" signalRef="Signal_atmpDataTransferStop" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_stopStart_to_stopSignalThrow" sourceRef="StartEvent_atmpDataTransferStop" targetRef="EndEvent_stopSignalSent" />
     <bpmn:sequenceFlow id="Flow_start_to_rejectDuplicateStart" sourceRef="StartEvent_atmpDataTransfer" targetRef="Activity_rejectDuplicateStart" />
     <bpmn:sequenceFlow id="Flow_rejectDuplicateStart_to_duplicateStartGateway" sourceRef="Activity_rejectDuplicateStart" targetRef="Gateway_duplicateStart" />
     <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_rejected" sourceRef="Gateway_duplicateStart" targetRef="EndEvent_duplicateStartRejected">
@@ -107,6 +117,26 @@
       <bpmndi:BPMNShape id="BPMNShape_stopSubProcess" bpmnElement="EventSubProcess_stop" isExpanded="true">
         <dc:Bounds x="240" y="360" width="300" height="140" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_stopSignalStart" bpmnElement="StartEvent_stopSignal">
+        <dc:Bounds x="280" y="412" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_stopped" bpmnElement="EndEvent_atmpDataTransferStopped">
+        <dc:Bounds x="452" y="412" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_stopMessageStart" bpmnElement="StartEvent_atmpDataTransferStop">
+        <dc:Bounds x="152" y="562" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_stopSignalSent" bpmnElement="EndEvent_stopSignalSent">
+        <dc:Bounds x="292" y="562" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_stop_stopped" bpmnElement="Flow_stop_to_stopped">
+        <di:waypoint x="316" y="430" />
+        <di:waypoint x="452" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_stopStart_stopSignalThrow" bpmnElement="Flow_stopStart_to_stopSignalThrow">
+        <di:waypoint x="188" y="580" />
+        <di:waypoint x="292" y="580" />
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_start_rejectDuplicateStart" bpmnElement="Flow_start_to_rejectDuplicateStart">
         <di:waypoint x="188" y="200" />
         <di:waypoint x="240" y="200" />

@@ -20,6 +20,18 @@ import org.springframework.beans.factory.InitializingBean;
  */
 public class MedicClient implements InitializingBean
 {
+	/**
+	 * Thrown when the MEDIC API cannot be reached at all (connection/IO failure, as opposed to a per-request error
+	 * status): the whole cycle is affected, not just the current subject.
+	 */
+	public static class MedicUnreachableException extends RuntimeException
+	{
+		public MedicUnreachableException(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
+	}
+
 	private static final Logger logger = LoggerFactory.getLogger(MedicClient.class);
 
 	public static final String IMPORT_PATH = "/api/medic-import";
@@ -66,7 +78,7 @@ public class MedicClient implements InitializingBean
 			if (exception instanceof InterruptedException)
 				Thread.currentThread().interrupt();
 
-			throw new RuntimeException("Could not reach MEDIC API at '" + uri + "': " + exception.getMessage(),
+			throw new MedicUnreachableException("Could not reach MEDIC API at '" + uri + "': " + exception.getMessage(),
 					exception);
 		}
 

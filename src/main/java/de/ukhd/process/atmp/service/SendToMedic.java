@@ -44,6 +44,14 @@ public class SendToMedic implements ServiceTask, InitializingBean
 		SubjectEntry subject = SubjectEntry.parse(variables.getString(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT));
 		String pseudonym = subject.pseudonym();
 
+		// Whole-cycle failure detected earlier in this cycle (Issue D): unmark without further audit noise so the
+		// subject is retried in full next cycle; the abort itself was audited once when it was detected
+		if (Boolean.TRUE.equals(variables.getBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)))
+		{
+			unmarkSeen(variables, pseudonym);
+			return;
+		}
+
 		// Creating this subject's bundle already failed and was audited (Issue D): skip sending and do not advance
 		// state
 		// (leave it unseen), so the subject is retried in full next cycle. Continue with the next subject.
@@ -69,6 +77,16 @@ public class SendToMedic implements ServiceTask, InitializingBean
 			// handling): the subject is now handled in this instance, so subsequent cycles query it incrementally
 			// (bulk-on-first-sight).
 			markSeen(variables, pseudonym);
+		}
+		catch (MedicClient.MedicUnreachableException exception)
+		{
+			// Whole-cycle failure (Issue D): MEDIC is down for everyone, not just this subject. Audit once, mark the
+			// cycle aborted so the remaining subjects are skipped quietly, and keep the watermark from advancing next
+			// cycle. The loop itself survives and retries on the next interval.
+			logger.warn("MEDIC unreachable, aborting remaining cycle: {}", exception.getMessage(), exception);
+			AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
+			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
+			unmarkSeen(variables, pseudonym);
 		}
 		catch (Exception exception)
 		{

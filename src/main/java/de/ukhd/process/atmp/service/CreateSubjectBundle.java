@@ -62,10 +62,15 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 		// instances)
 		variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, false);
 
+		// Whole-cycle failure detected earlier in this cycle (Issue D): skip the remaining subjects without further
+		// per-subject work or audit noise; SendToMedic unmarks them so they are retried in full next cycle
+		if (Boolean.TRUE.equals(variables.getBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)))
+			return;
+
 		try
 		{
 			Optional<Instant> lowerBound = observationBundleFactory.queryLowerBound(pseudonym, watermark(variables),
-					seenSubjects(variables), forceBulk(variables));
+					seenSubjects(variables));
 
 			IGenericClient client = api.getFhirClientProvider().getById(fhirServerId).orElseThrow(
 					() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
@@ -102,11 +107,6 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 	{
 		List<String> seen = variables.getStringList(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS);
 		return seen == null ? List.of() : seen;
-	}
-
-	private boolean forceBulk(Variables variables)
-	{
-		return Boolean.TRUE.equals(variables.getBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_FORCE_BULK));
 	}
 
 	private List<Observation> findObservations(IGenericClient client, String patientReference,

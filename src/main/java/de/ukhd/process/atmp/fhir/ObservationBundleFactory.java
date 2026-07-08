@@ -49,10 +49,11 @@ public class ObservationBundleFactory
 	 * present value means an <b>incremental</b> query for {@code _lastUpdated} greater than that instant.
 	 *
 	 * <p>
-	 * A full query is used when a full re-send is forced, when no cycle has completed yet (no watermark), or the first
-	 * time a subject is seen in this instance (bulk-on-first-sight, covers late enrollment). Otherwise the incremental
-	 * bound is the watermark minus the configured buffer, which absorbs BPE&harr;FHIR-store clock skew; any resulting
-	 * re-sends are harmless because MEDIC upserts by {@code Observation.id}.
+	 * A full query is used when no cycle has completed yet (no watermark) or the first time a subject is seen in this
+	 * instance (bulk-on-first-sight, covers late enrollment). Otherwise the incremental bound is the watermark minus
+	 * the configured buffer, which absorbs BPE&harr;FHIR-store clock skew; any resulting re-sends are harmless because
+	 * MEDIC upserts by {@code Observation.id}. A full re-send of everything is forced by stopping and re-starting the
+	 * process: a fresh instance has neither watermark nor seen subjects, so its first cycle is always full.
 	 *
 	 * @param pseudonym
 	 *            the subject's ATMP pseudonym, not <code>null</code>
@@ -60,17 +61,14 @@ public class ObservationBundleFactory
 	 *            start instant of the last completed cycle, or <code>null</code> if none completed yet
 	 * @param seenSubjects
 	 *            pseudonyms already handled in this instance, not <code>null</code>
-	 * @param forceBulk
-	 *            <code>true</code> to ignore the watermark and re-send everything
 	 * @return the incremental lower bound, or {@link Optional#empty()} for a full query
 	 */
-	public Optional<Instant> queryLowerBound(String pseudonym, Instant watermark, Collection<String> seenSubjects,
-			boolean forceBulk)
+	public Optional<Instant> queryLowerBound(String pseudonym, Instant watermark, Collection<String> seenSubjects)
 	{
 		Objects.requireNonNull(pseudonym, "pseudonym");
 		Objects.requireNonNull(seenSubjects, "seenSubjects");
 
-		if (forceBulk || watermark == null || !seenSubjects.contains(pseudonym))
+		if (watermark == null || !seenSubjects.contains(pseudonym))
 			return Optional.empty();
 
 		return Optional.of(watermark.minus(watermarkBuffer));

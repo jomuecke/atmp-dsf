@@ -16,7 +16,6 @@
 		<maven.compiler.release>25</maven.compiler.release>
 
 		<dsf.version>2.1.0</dsf.version>
-		<operaton.version>1.1.1</operaton.version>
 
 		<testSetup.location>../mii-processes-test-setup</testSetup.location>
 	</properties>
@@ -44,12 +43,6 @@
 			<groupId>dev.dsf</groupId>
 			<artifactId>dsf-bpe-process-api-v2</artifactId>
 			<version>${dsf.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.operaton.bpm</groupId>
-			<artifactId>operaton-engine</artifactId>
-			<version>${operaton.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
