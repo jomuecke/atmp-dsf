@@ -21,8 +21,8 @@ import dev.dsf.bpe.v2.variables.Variables;
 
 /**
  * Behaviour test for the Issue D error wiring of {@link CreateSubjectBundle}: a per-subject failure is audited on the
- * start Task (with the local patient identity redacted) and flags the subject so {@link SendToMedic} skips it, and an
- * aborted cycle skips the remaining subjects entirely.
+ * start Task (with the local patient identity redacted) and flags the subject so {@link SendToRegister} skips it, and
+ * an aborted cycle skips the remaining subjects entirely.
  */
 public class CreateSubjectBundleTest
 {

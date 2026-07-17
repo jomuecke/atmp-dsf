@@ -40,7 +40,7 @@
         <bpmn:incoming>Flow_substart_to_create</bpmn:incoming>
         <bpmn:outgoing>Flow_create_to_send</bpmn:outgoing>
       </bpmn:serviceTask>
-      <bpmn:serviceTask id="Activity_sendToMedic" name="send to MEDIC" camunda:class="de.ukhd.process.atmp.service.SendToMedic">
+      <bpmn:serviceTask id="Activity_sendToRegister" name="send to register" camunda:class="de.ukhd.process.atmp.service.SendToRegister">
         <bpmn:incoming>Flow_create_to_send</bpmn:incoming>
         <bpmn:outgoing>Flow_send_to_subend</bpmn:outgoing>
       </bpmn:serviceTask>
@@ -48,8 +48,8 @@
         <bpmn:incoming>Flow_send_to_subend</bpmn:incoming>
       </bpmn:endEvent>
       <bpmn:sequenceFlow id="Flow_substart_to_create" sourceRef="StartEvent_perSubject" targetRef="Activity_createSubjectBundle" />
-      <bpmn:sequenceFlow id="Flow_create_to_send" sourceRef="Activity_createSubjectBundle" targetRef="Activity_sendToMedic" />
-      <bpmn:sequenceFlow id="Flow_send_to_subend" sourceRef="Activity_sendToMedic" targetRef="EndEvent_perSubject" />
+      <bpmn:sequenceFlow id="Flow_create_to_send" sourceRef="Activity_createSubjectBundle" targetRef="Activity_sendToRegister" />
+      <bpmn:sequenceFlow id="Flow_send_to_subend" sourceRef="Activity_sendToRegister" targetRef="EndEvent_perSubject" />
     </bpmn:subProcess>
     <bpmn:intermediateCatchEvent id="Event_timerInterval" name="wait">
       <bpmn:incoming>Flow_subprocess_to_timer</bpmn:incoming>
@@ -111,6 +111,30 @@
       <bpmndi:BPMNShape id="BPMNShape_subprocess" bpmnElement="Activity_perSubject" isExpanded="true">
         <dc:Bounds x="780" y="80" width="520" height="240" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_perSubjectStart" bpmnElement="StartEvent_perSubject">
+        <dc:Bounds x="820" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_createSubjectBundle" bpmnElement="Activity_createSubjectBundle">
+        <dc:Bounds x="900" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_sendToRegister" bpmnElement="Activity_sendToRegister">
+        <dc:Bounds x="1050" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_perSubjectEnd" bpmnElement="EndEvent_perSubject">
+        <dc:Bounds x="1200" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_substart_create" bpmnElement="Flow_substart_to_create">
+        <di:waypoint x="856" y="200" />
+        <di:waypoint x="900" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_create_send" bpmnElement="Flow_create_to_send">
+        <di:waypoint x="1000" y="200" />
+        <di:waypoint x="1050" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_send_subend" bpmnElement="Flow_send_to_subend">
+        <di:waypoint x="1150" y="200" />
+        <di:waypoint x="1200" y="200" />
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="BPMNShape_timer" bpmnElement="Event_timerInterval">
         <dc:Bounds x="1362" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>

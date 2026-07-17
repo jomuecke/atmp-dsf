@@ -19,7 +19,7 @@ import dev.dsf.bpe.v2.variables.Variables;
  *
  * <p>
  * Messages are deliberately built from the ATMP pseudonym, the exception type/message and a timestamp only. The local
- * patient identity is redacted (see {@link #subjectError(String, String, Throwable, Instant)}) and the MEDIC API key
+ * patient identity is redacted (see {@link #subjectError(String, String, Throwable, Instant)}) and the register API key
  * never appears in any exception (it is sent as a request header, never echoed).
  */
 public final class AuditLog
@@ -61,7 +61,7 @@ public final class AuditLog
 	}
 
 	/**
-	 * Audit line for a whole-cycle failure (FHIR store / MEDIC unreachable):
+	 * Audit line for a whole-cycle failure (FHIR store / register unreachable):
 	 * {@code "[<timestamp>] cycle skipped: <ExceptionClass>: <message>"}. Contains configuration/URL detail only, never
 	 * a patient identity.
 	 */

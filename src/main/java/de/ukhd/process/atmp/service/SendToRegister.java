@@ -10,7 +10,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import de.ukhd.process.atmp.ConstantsAtmp;
 import de.ukhd.process.atmp.audit.AuditLog;
-import de.ukhd.process.atmp.client.MedicClient;
+import de.ukhd.process.atmp.client.RegisterClient;
 import de.ukhd.process.atmp.variables.SeenSubjects;
 import de.ukhd.process.atmp.variables.SubjectEntry;
 import dev.dsf.bpe.v2.ProcessPluginApi;
@@ -18,24 +18,24 @@ import dev.dsf.bpe.v2.activity.ServiceTask;
 import dev.dsf.bpe.v2.variables.Variables;
 
 /**
- * POSTs the current subject's pseudonymized collection {@link Bundle} to the MEDIC REST API. Bundles without entries
+ * POSTs the current subject's pseudonymized collection {@link Bundle} to the register REST API. Bundles without entries
  * are not sent.
  */
-public class SendToMedic implements ServiceTask, InitializingBean
+public class SendToRegister implements ServiceTask, InitializingBean
 {
-	private static final Logger logger = LoggerFactory.getLogger(SendToMedic.class);
+	private static final Logger logger = LoggerFactory.getLogger(SendToRegister.class);
 
-	private final MedicClient medicClient;
+	private final RegisterClient registerClient;
 
-	public SendToMedic(MedicClient medicClient)
+	public SendToRegister(RegisterClient registerClient)
 	{
-		this.medicClient = medicClient;
+		this.registerClient = registerClient;
 	}
 
 	@Override
 	public void afterPropertiesSet() throws Exception
 	{
-		Objects.requireNonNull(medicClient, "medicClient");
+		Objects.requireNonNull(registerClient, "registerClient");
 	}
 
 	@Override
@@ -66,11 +66,11 @@ public class SendToMedic implements ServiceTask, InitializingBean
 			Bundle bundle = variables.getFhirResource(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE);
 
 			if (!bundle.hasEntry())
-				logger.info("No matching Observations for current subject, nothing sent to MEDIC");
+				logger.info("No matching Observations for current subject, nothing sent to register");
 			else
 			{
 				String bundleJson = api.getFhirContext().newJsonParser().encodeResourceToString(bundle);
-				medicClient.send(bundleJson);
+				registerClient.send(bundleJson);
 			}
 
 			// Advance state only after the subject has been handled without error (an empty bundle is a valid no-op
@@ -78,12 +78,12 @@ public class SendToMedic implements ServiceTask, InitializingBean
 			// (bulk-on-first-sight).
 			markSeen(variables, pseudonym);
 		}
-		catch (MedicClient.MedicUnreachableException exception)
+		catch (RegisterClient.RegisterUnreachableException exception)
 		{
-			// Whole-cycle failure (Issue D): MEDIC is down for everyone, not just this subject. Audit once, mark the
-			// cycle aborted so the remaining subjects are skipped quietly, and keep the watermark from advancing next
-			// cycle. The loop itself survives and retries on the next interval.
-			logger.warn("MEDIC unreachable, aborting remaining cycle: {}", exception.getMessage(), exception);
+			// Whole-cycle failure (Issue D): the register is down for everyone, not just this subject. Audit once,
+			// mark the cycle aborted so the remaining subjects are skipped quietly, and keep the watermark from
+			// advancing next cycle. The loop itself survives and retries on the next interval.
+			logger.warn("Register unreachable, aborting remaining cycle: {}", exception.getMessage(), exception);
 			AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
 			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
 			unmarkSeen(variables, pseudonym);
@@ -92,7 +92,7 @@ public class SendToMedic implements ServiceTask, InitializingBean
 		{
 			// Per-subject isolation (Issue D): a failed send must not abort the cycle. Record an auditable error on the
 			// start Task and unmark the subject so its state is not advanced and it is retried in full next cycle.
-			logger.warn("Failed sending bundle for subject with pseudonym '{}' to MEDIC: {}", pseudonym,
+			logger.warn("Failed sending bundle for subject with pseudonym '{}' to register: {}", pseudonym,
 					exception.getMessage(), exception);
 			AuditLog.appendError(api, variables,
 					AuditLog.subjectError(pseudonym, subject.patientReference(), exception, Instant.now()));

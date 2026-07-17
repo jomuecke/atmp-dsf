@@ -14,25 +14,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
 /**
- * REST client for the external MEDIC / integrate-ATMP API. POSTs FHIR collection Bundles (JSON) to
+ * REST client for the external ATMP register (MEDIC / integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
  * {@code {apiUrl}/api/medic-import}, authenticated with the site's API key sent as {@code MEDIC-API-KEY} header. The
  * key is read from a docker-secret file and never logged.
  */
-public class MedicClient implements InitializingBean
+public class RegisterClient implements InitializingBean
 {
 	/**
-	 * Thrown when the MEDIC API cannot be reached at all (connection/IO failure, as opposed to a per-request error
+	 * Thrown when the register cannot be reached at all (connection/IO failure, as opposed to a per-request error
 	 * status): the whole cycle is affected, not just the current subject.
 	 */
-	public static class MedicUnreachableException extends RuntimeException
+	public static class RegisterUnreachableException extends RuntimeException
 	{
-		public MedicUnreachableException(String message, Throwable cause)
+		public RegisterUnreachableException(String message, Throwable cause)
 		{
 			super(message, cause);
 		}
 	}
 
-	private static final Logger logger = LoggerFactory.getLogger(MedicClient.class);
+	private static final Logger logger = LoggerFactory.getLogger(RegisterClient.class);
 
 	public static final String IMPORT_PATH = "/api/medic-import";
 	public static final String API_KEY_HEADER = "MEDIC-API-KEY";
@@ -43,7 +43,7 @@ public class MedicClient implements InitializingBean
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 	private String apiKey;
 
-	public MedicClient(String apiUrl, String apiKeyFile)
+	public RegisterClient(String apiUrl, String apiKeyFile)
 	{
 		this.apiUrl = apiUrl;
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
@@ -58,7 +58,7 @@ public class MedicClient implements InitializingBean
 		apiKey = Files.readString(apiKeyFile).trim();
 
 		if (apiKey.isEmpty())
-			throw new IllegalArgumentException("MEDIC API key file '" + apiKeyFile + "' is empty");
+			throw new IllegalArgumentException("Register API key file '" + apiKeyFile + "' is empty");
 	}
 
 	public void send(String bundleJson)
@@ -78,14 +78,14 @@ public class MedicClient implements InitializingBean
 			if (exception instanceof InterruptedException)
 				Thread.currentThread().interrupt();
 
-			throw new MedicUnreachableException("Could not reach MEDIC API at '" + uri + "': " + exception.getMessage(),
-					exception);
+			throw new RegisterUnreachableException(
+					"Could not reach register API at '" + uri + "': " + exception.getMessage(), exception);
 		}
 
 		if (response.statusCode() < 200 || response.statusCode() > 299)
 			throw new RuntimeException(
-					"MEDIC API at '" + uri + "' returned status " + response.statusCode() + ": " + response.body());
+					"Register API at '" + uri + "' returned status " + response.statusCode() + ": " + response.body());
 
-		logger.info("Sent bundle to MEDIC API at '{}', status {}", uri, response.statusCode());
+		logger.info("Sent bundle to register API at '{}', status {}", uri, response.statusCode());
 	}
 }

@@ -19,8 +19,8 @@ import org.hl7.fhir.r4.model.Reference;
  *
  * <p>
  * Per Observation: {@code subject.reference} is rewritten to {@code Patient/<pseudonym>}, the source
- * {@code Observation.id} is preserved unchanged (MEDIC upserts by id), the local {@code Observation.identifier} is
- * kept, and all other fields are minimized to the agreed set: id, status, category, code, subject, effective[x],
+ * {@code Observation.id} is preserved unchanged (the register upserts by id), the local {@code Observation.identifier}
+ * is kept, and all other fields are minimized to the agreed set: id, status, category, code, subject, effective[x],
  * value[x] and component.
  */
 public class ObservationBundleFactory
@@ -52,8 +52,9 @@ public class ObservationBundleFactory
 	 * A full query is used when no cycle has completed yet (no watermark) or the first time a subject is seen in this
 	 * instance (bulk-on-first-sight, covers late enrollment). Otherwise the incremental bound is the watermark minus
 	 * the configured buffer, which absorbs BPE&harr;FHIR-store clock skew; any resulting re-sends are harmless because
-	 * MEDIC upserts by {@code Observation.id}. A full re-send of everything is forced by stopping and re-starting the
-	 * process: a fresh instance has neither watermark nor seen subjects, so its first cycle is always full.
+	 * the register upserts by {@code Observation.id}. A full re-send of everything is forced by stopping and
+	 * re-starting the process: a fresh instance has neither watermark nor seen subjects, so its first cycle is always
+	 * full.
 	 *
 	 * @param pseudonym
 	 *            the subject's ATMP pseudonym, not <code>null</code>

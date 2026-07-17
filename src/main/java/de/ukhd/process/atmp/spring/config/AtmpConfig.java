@@ -10,12 +10,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 
-import de.ukhd.process.atmp.client.MedicClient;
+import de.ukhd.process.atmp.client.RegisterClient;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.service.CreateSubjectBundle;
 import de.ukhd.process.atmp.service.QueryResearchSubjects;
 import de.ukhd.process.atmp.service.RejectDuplicateStart;
-import de.ukhd.process.atmp.service.SendToMedic;
+import de.ukhd.process.atmp.service.SendToRegister;
 import de.ukhd.process.atmp.service.SetTimer;
 import dev.dsf.bpe.v2.documentation.ProcessDocumentation;
 
@@ -33,7 +33,7 @@ public class AtmpConfig
 	private String apiUrl;
 
 	@ProcessDocumentation(required = true, processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Location of a file (docker secret) containing the site's MEDIC API key, sent as MEDIC-API-KEY header", recommendation = "Use docker secret file to configure", example = "/run/secrets/atmp_medic_api_key")
+			"ukhdde_atmpDataTransfer" }, description = "Location of a file (docker secret) containing the site's register API key, sent as MEDIC-API-KEY header", recommendation = "Use docker secret file to configure", example = "/run/secrets/atmp_medic_api_key")
 	@Value("${de.ukhd.atmp.api.key.file:#{null}}")
 	private String apiKeyFile;
 
@@ -58,7 +58,7 @@ public class AtmpConfig
 	private String timerInterval;
 
 	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "ISO-8601 duration subtracted from the watermark on incremental cycles to absorb BPE/FHIR-store clock skew; harmless overlap is absorbed by MEDIC's upsert-by-id", example = "PT1M")
+			"ukhdde_atmpDataTransfer" }, description = "ISO-8601 duration subtracted from the watermark on incremental cycles to absorb BPE/FHIR-store clock skew; harmless overlap is absorbed by the register's upsert-by-id", example = "PT1M")
 	@Value("${de.ukhd.atmp.watermark.buffer:PT1M}")
 	private String watermarkBuffer;
 
@@ -72,9 +72,9 @@ public class AtmpConfig
 
 	@Bean
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
-	public MedicClient medicClient()
+	public RegisterClient registerClient()
 	{
-		return new MedicClient(apiUrl, apiKeyFile);
+		return new RegisterClient(apiUrl, apiKeyFile);
 	}
 
 	@Bean
@@ -114,8 +114,8 @@ public class AtmpConfig
 
 	@Bean
 	@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-	public SendToMedic sendToMedic()
+	public SendToRegister sendToRegister()
 	{
-		return new SendToMedic(medicClient());
+		return new SendToRegister(registerClient());
 	}
 }

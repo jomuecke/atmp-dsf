@@ -63,7 +63,7 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 		variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, false);
 
 		// Whole-cycle failure detected earlier in this cycle (Issue D): skip the remaining subjects without further
-		// per-subject work or audit noise; SendToMedic unmarks them so they are retried in full next cycle
+		// per-subject work or audit noise; SendToRegister unmarks them so they are retried in full next cycle
 		if (Boolean.TRUE.equals(variables.getBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)))
 			return;
 
@@ -86,7 +86,8 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 		catch (Exception exception)
 		{
 			// Per-subject isolation (Issue D): a bad subject must not abort the cycle. Record an auditable error on the
-			// start Task, flag the subject as failed so SendToMedic skips it, and continue with the next subject. State
+			// start Task, flag the subject as failed so SendToRegister skips it, and continue with the next subject.
+			// State
 			// is
 			// not advanced (subject stays unseen), so it is retried in full next cycle.
 			logger.warn("Failed creating bundle for subject with pseudonym '{}': {}", pseudonym, exception.getMessage(),

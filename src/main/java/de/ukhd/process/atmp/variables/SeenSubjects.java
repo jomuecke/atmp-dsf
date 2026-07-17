@@ -12,7 +12,7 @@ import java.util.Objects;
  * <p>
  * Error-handling (Issue&nbsp;D) uses {@link #unmark(List, String)} to <em>not advance</em> a failed subject's state:
  * the subject is left out of / removed from the set so the next cycle re-queries it in full and retries the whole
- * subject (MEDIC absorbs any harmless re-send via upsert-by-{@code id}).
+ * subject (the register absorbs any harmless re-send via upsert-by-{@code id}).
  */
 public final class SeenSubjects
 {

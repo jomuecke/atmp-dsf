@@ -19,29 +19,29 @@ import org.junit.Test;
 
 import ca.uhn.fhir.context.FhirContext;
 import de.ukhd.process.atmp.ConstantsAtmp;
-import de.ukhd.process.atmp.client.MedicClient;
+import de.ukhd.process.atmp.client.RegisterClient;
 import dev.dsf.bpe.v2.ProcessPluginApi;
 import dev.dsf.bpe.v2.variables.Variables;
 
 /**
- * Behaviour test for the Issue D error wiring of {@link SendToMedic}: per-subject failures are audited on the start
- * Task and do not advance the subject's seen-state, a MEDIC-unreachable failure aborts the remaining cycle with a
+ * Behaviour test for the Issue D error wiring of {@link SendToRegister}: per-subject failures are audited on the start
+ * Task and do not advance the subject's seen-state, a register-unreachable failure aborts the remaining cycle with a
  * single audit entry.
  */
-public class SendToMedicTest
+public class SendToRegisterTest
 {
 	private static final String PSEUDONYM = "ATMP-0001";
 	private static final String SUBJECT_ENTRY = "Patient/local-patient-1"
 			+ ConstantsAtmp.RESEARCH_SUBJECT_ENTRY_SEPARATOR + PSEUDONYM;
 
-	private static class FailingMedicClient extends MedicClient
+	private static class FailingRegisterClient extends RegisterClient
 	{
 		private final RuntimeException failure;
 		private int sendCount;
 
-		FailingMedicClient(RuntimeException failure)
+		FailingRegisterClient(RuntimeException failure)
 		{
-			super("http://medic.test", "unused");
+			super("http://register.test", "unused");
 			this.failure = failure;
 		}
 
@@ -75,9 +75,9 @@ public class SendToMedicTest
 	@Test
 	public void testSuccessfulSendMarksSubjectSeen() throws Exception
 	{
-		FailingMedicClient client = new FailingMedicClient(null);
+		FailingRegisterClient client = new FailingRegisterClient(null);
 
-		new SendToMedic(client).execute(api(), variables());
+		new SendToRegister(client).execute(api(), variables());
 
 		assertEquals(1, client.sendCount);
 		assertTrue(seenSubjects().contains(PSEUDONYM));
@@ -89,26 +89,25 @@ public class SendToMedicTest
 	{
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS, new ArrayList<>(List.of(PSEUDONYM)));
 
-		new SendToMedic(new FailingMedicClient(new RuntimeException("MEDIC returned status 422"))).execute(api(),
-				variables());
+		new SendToRegister(new FailingRegisterClient(new RuntimeException("Register returned status 422")))
+				.execute(api(), variables());
 
 		assertFalse("failed subject must be retried in full next cycle", seenSubjects().contains(PSEUDONYM));
 		assertEquals(1, startTask.getOutput().size());
 		String audit = ((StringType) startTask.getOutputFirstRep().getValue()).getValue();
 		assertTrue(audit.contains(PSEUDONYM));
-		assertTrue(audit.contains("MEDIC returned status 422"));
+		assertTrue(audit.contains("Register returned status 422"));
 		assertFalse("a per-subject failure must not abort the cycle",
 				Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
 	}
 
 	@Test
-	public void testMedicUnreachableAbortsCycleWithSingleAudit() throws Exception
+	public void testRegisterUnreachableAbortsCycleWithSingleAudit() throws Exception
 	{
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS, new ArrayList<>(List.of(PSEUDONYM)));
 
-		new SendToMedic(new FailingMedicClient(
-				new MedicClient.MedicUnreachableException("Could not reach MEDIC API", new RuntimeException())))
-				.execute(api(), variables());
+		new SendToRegister(new FailingRegisterClient(new RegisterClient.RegisterUnreachableException(
+				"Could not reach register API", new RuntimeException()))).execute(api(), variables());
 
 		assertTrue(Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
 		assertFalse(seenSubjects().contains(PSEUDONYM));
@@ -121,9 +120,9 @@ public class SendToMedicTest
 	{
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, Boolean.TRUE);
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS, new ArrayList<>(List.of(PSEUDONYM)));
-		FailingMedicClient client = new FailingMedicClient(null);
+		FailingRegisterClient client = new FailingRegisterClient(null);
 
-		new SendToMedic(client).execute(api(), variables());
+		new SendToRegister(client).execute(api(), variables());
 
 		assertEquals(0, client.sendCount);
 		assertFalse(seenSubjects().contains(PSEUDONYM));
@@ -135,9 +134,9 @@ public class SendToMedicTest
 	{
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, Boolean.TRUE);
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS, new ArrayList<>(List.of(PSEUDONYM)));
-		FailingMedicClient client = new FailingMedicClient(null);
+		FailingRegisterClient client = new FailingRegisterClient(null);
 
-		new SendToMedic(client).execute(api(), variables());
+		new SendToRegister(client).execute(api(), variables());
 
 		assertEquals(0, client.sendCount);
 		assertFalse(seenSubjects().contains(PSEUDONYM));

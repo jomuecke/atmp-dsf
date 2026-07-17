@@ -32,7 +32,7 @@ public interface ConstantsAtmp
 	// BPMN process variables carried across timer cycles
 	String BPMN_EXECUTION_VARIABLE_TIMER_INTERVAL = "atmpTimerInterval";
 	String BPMN_EXECUTION_VARIABLE_DUPLICATE_START = "atmpDuplicateStart";
-	// True once a cycle-level failure (e.g. MEDIC unreachable) was detected mid-cycle: the remaining subjects of the
+	// True once a cycle-level failure (e.g. register unreachable) was detected mid-cycle: the remaining subjects of the
 	// cycle are skipped without individual audit entries and the watermark is not advanced next cycle
 	String BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED = "atmpCycleAborted";
 	// ISO-8601 instant watermark = start time of the last completed cycle (incremental lower bound source)

@@ -66,7 +66,7 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 		}
 		catch (Exception exception)
 		{
-			// Whole-cycle isolation (Issue D): FHIR store / MEDIC down must not terminate the long-lived instance.
+			// Whole-cycle isolation (Issue D): FHIR store / register down must not terminate the long-lived instance.
 			// Record
 			// an auditable error, run zero subject instances (empty list) so the loop falls straight through to the
 			// timer,
@@ -89,12 +89,12 @@ public class QueryResearchSubjects implements ServiceTask, InitializingBean
 	/**
 	 * Runs after a successful query at the start of every cycle: promotes the previous cycle's start time to the
 	 * watermark (a no-op on the very first cycle, where no prior cycle start exists), then records {@code cycleStart}
-	 * (captured before the query). A skipped cycle does not call this, and after an aborted cycle (MEDIC unreachable
+	 * (captured before the query). A skipped cycle does not call this, and after an aborted cycle (register unreachable
 	 * mid-cycle) the promotion is withheld, so the watermark stays put and the tick is retried next interval.
 	 * <p>
 	 * Promoting the <i>previous</i> cycle's start (instead of the completed cycle's own start) deliberately re-queries
 	 * one full interval of overlap each cycle: it is equivalent to advancing the watermark "after all subjects" while
-	 * keeping the advance in a single place, and re-sends are absorbed by MEDIC's upsert-by-id.
+	 * keeping the advance in a single place, and re-sends are absorbed by the register's upsert-by-id.
 	 */
 	private void advanceCycleState(Variables variables, Instant cycleStart)
 	{
