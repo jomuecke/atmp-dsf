@@ -400,10 +400,6 @@
                   <option value="withdrawn">withdrawn</option>
                 </select>
               </label>
-              <label>
-                Actual arm
-                <input id="actualArm" placeholder="optional" autocomplete="off">
-              </label>
             </div>
           </div>
         </div>
@@ -420,8 +416,8 @@
             </label>
             <label>
               CSV rows
-              <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,actual_arm&#10;atmp-subject-code-01,Patient/0000123456,code-01,on-study,"></textarea>
-              <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, actual_arm, period_start.</span>
+              <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,period_start&#10;atmp-subject-code-01,Patient/0000123456,code-01,on-study,2026-01-01"></textarea>
+              <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, period_start.</span>
             </label>
           </div>
         </div>
@@ -466,7 +462,6 @@
       patientReference: document.getElementById("patientReference"),
       defaultPeriodStart: document.getElementById("defaultPeriodStart"),
       status: document.getElementById("status"),
-      actualArm: document.getElementById("actualArm"),
       csvFile: document.getElementById("csvFile"),
       csvText: document.getElementById("csvText"),
       sampleCsv: document.getElementById("sampleCsv"),
@@ -548,9 +543,6 @@
       const status = xmlEscape(row.status || "on-study");
       const patientReference = xmlEscape(normalizePatientReference(row.patientReference));
       const periodStart = xmlEscape(row.periodStart || els.defaultPeriodStart.value || "2026-01-01");
-      const actualArm = row.actualArm ? [
-        "        <actualArm value=\"" + xmlEscape(row.actualArm) + "\"/>"
-      ] : [];
 
       return [
         "  <entry>",
@@ -581,7 +573,6 @@
         "        <individual>",
         "          <reference value=\"" + patientReference + "\"/>",
         "        </individual>",
-        ...actualArm,
         "        <consent>",
         "          <extension url=\"http://hl7.org/fhir/StructureDefinition/data-absent-reason\">",
         "            <valueCode value=\"unknown\"/>",
@@ -687,7 +678,6 @@
       const patientIndex = index("patient_reference");
       const pseudonymIndex = index("pseudonym");
       const statusIndex = index("status");
-      const armIndex = index("actual_arm");
       const periodStartIndex = index("period_start");
 
       if (subjectIndex === -1 || patientIndex === -1 || pseudonymIndex === -1) {
@@ -699,7 +689,6 @@
         patientReference: (cells[patientIndex] || "").trim(),
         pseudonym: (cells[pseudonymIndex] || "").trim(),
         status: (statusIndex >= 0 ? (cells[statusIndex] || "") : "on-study").trim() || "on-study",
-        actualArm: (armIndex >= 0 ? (cells[armIndex] || "") : "").trim(),
         periodStart: (periodStartIndex >= 0 ? (cells[periodStartIndex] || "") : els.defaultPeriodStart.value).trim() || els.defaultPeriodStart.value
       }));
     }
@@ -711,7 +700,6 @@
           pseudonym: els.pseudonym.value.trim(),
           patientReference: els.patientReference.value.trim(),
           status: els.status.value,
-          actualArm: els.actualArm.value.trim(),
           periodStart: els.defaultPeriodStart.value.trim()
         }];
       }
@@ -805,7 +793,6 @@
       els.patientReference.value = "Patient/0000123456";
       els.defaultPeriodStart.value = "2026-01-01";
       els.status.value = "on-study";
-      els.actualArm.value = "";
       els.csvFile.value = "";
       els.csvText.value = "";
       render();
@@ -820,15 +807,15 @@
     els.includeStudy.addEventListener("change", render);
     els.sampleCsv.addEventListener("click", () => {
       els.csvText.value = [
-        "subject_id,patient_reference,pseudonym,status,actual_arm,period_start",
-        "atmp-subject-code-01,Patient/0000123456,code-01,on-study,,2026-01-01",
-        "atmp-subject-code-02,0001234567,code-02,on-study,Cohort A,2026-01-01",
-        "atmp-subject-code-03,Patient/0012345678,code-03,withdrawn,,2026-01-01"
+        "subject_id,patient_reference,pseudonym,status,period_start",
+        "atmp-subject-code-01,Patient/0000123456,code-01,on-study,2026-01-01",
+        "atmp-subject-code-02,0001234567,code-02,on-study,2026-01-01",
+        "atmp-subject-code-03,Patient/0012345678,code-03,withdrawn,2026-01-01"
       ].join("\n");
       render();
     });
 
-    [els.subjectId, els.pseudonym, els.patientReference, els.defaultPeriodStart, els.status, els.actualArm, els.csvText].forEach((el) => {
+    [els.subjectId, els.pseudonym, els.patientReference, els.defaultPeriodStart, els.status, els.csvText].forEach((el) => {
       el.addEventListener("input", render);
       el.addEventListener("change", render);
     });

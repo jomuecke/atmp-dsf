@@ -63,8 +63,6 @@
         <individual>
           <reference value="Patient/REPLACE_WITH_EXISTING_PATIENT_ID"/>
         </individual>
-        <!-- Optional: ATMP indication, cohort, arm, or disease group. -->
-        <!-- <actualArm value="REPLACE_WITH_ACTUAL_ARM"/> -->
         <consent>
           <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
             <valueCode value="unknown"/>
