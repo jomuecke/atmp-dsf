@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
 /**
- * REST client for the external ATMP register (MEDIC / integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
+ * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
  * {@code {apiUrl}/api/medic-import}, authenticated with the site's API key sent as {@code MEDIC-API-KEY} header. The
  * key is read from a docker-secret file and never logged.
  */

@@ -16,18 +16,18 @@ public class AuditLogTest
 {
 	private static final String PSEUDONYM = "ATMP-0001";
 	private static final String PATIENT_REFERENCE = "Patient/local-patient-1";
-	private static final String API_KEY = "super-secret-medic-key";
+	private static final String API_KEY = "super-secret-register-key";
 	private static final Instant TIMESTAMP = Instant.parse("2026-07-06T10:15:30Z");
 
 	@Test
 	public void testSubjectErrorContainsPseudonymCauseAndTimestamp()
 	{
 		String line = AuditLog.subjectError(PSEUDONYM, PATIENT_REFERENCE,
-				new RuntimeException("MEDIC returned status 422"), TIMESTAMP);
+				new RuntimeException("Register returned status 422"), TIMESTAMP);
 
 		assertTrue(line.contains(PSEUDONYM));
 		assertTrue(line.contains("RuntimeException"));
-		assertTrue(line.contains("MEDIC returned status 422"));
+		assertTrue(line.contains("Register returned status 422"));
 		assertTrue(line.contains(TIMESTAMP.toString()));
 	}
 
@@ -58,7 +58,7 @@ public class AuditLogTest
 		// a plausible exception that (wrongly) echoed a key would still not be forwarded verbatim here, but the key is
 		// never part of the exceptions we build; assert the audit line stays clean for a typical failure.
 		String line = AuditLog.subjectError(PSEUDONYM, PATIENT_REFERENCE,
-				new RuntimeException("Could not reach MEDIC API at 'https://medic/api/medic-import'"), TIMESTAMP);
+				new RuntimeException("Could not reach register API at 'https://register/api/medic-import'"), TIMESTAMP);
 
 		assertFalse(line.contains(API_KEY));
 	}

@@ -21,7 +21,7 @@
 	</properties>
 
 	<name>atmp-dsf</name>
-	<description>DSF process plugin: periodically collects ATMP-study laboratory Observations from the local FHIR store and sends them pseudonymized to the external MEDIC / integrate-ATMP REST API</description>
+	<description>DSF process plugin: periodically collects ATMP-study laboratory Observations from the local FHIR store and sends them pseudonymized to the external ATMP register (integrate-ATMP) REST API</description>
 	<url>https://github.com/ukhd/atmp-dsf</url>
 
 	<scm>

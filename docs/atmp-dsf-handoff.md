@@ -6,7 +6,7 @@ Resume point for a fresh session. Read this first, then the spec + PRD + issue f
 
 - **Goal:** build `atmp-dsf`, a DSF v2 process plugin that runs on each participating DIC, periodically
   collects ATMP-study lab `Observation`s from the local FHIR store, pseudonymizes them, and POSTs them to
-  the external **MEDIC / integrate-ATMP REST API**. Not a DSF-to-DSF transfer.
+  the external **ATMP register (integrate-ATMP) REST API**. Not a DSF-to-DSF transfer.
 - **Matt flow position:** `grill ✅ → to-prd ✅ → to-issues ✅`. **Step 1 (module scaffold) implemented.**
   Next action: **`/implement` Issue A** in a fresh session.
 - **Tracker:** none wired (repo origin = UKHD GitLab `git.med.uni-heidelberg.de:imi/public/medic/atmp-dsf`;
@@ -31,7 +31,7 @@ Resume point for a fresh session. Read this first, then the spec + PRD + issue f
 ## Issues (vertical slices)
 
 - **A — one-shot end-to-end send (tracer bullet)** [no blocker]: minimal FHIR artifacts + `ObservationBundleFactory`
-  (pseudonymize, LOINC+`status=final` filter, minimize, stable id, send-all) + `MedicClient` + minimal BPMN
+  (pseudonymize, LOINC+`status=final` filter, minimize, stable id, send-all) + `RegisterClient` + minimal BPMN
   (start→query→multi-instance→build→POST→end) + 3 test seams + test-setup (Mockoon mock, dic1, seed bundle).
 - **B — timer loop + clean stop** [A]: SetTimer + cycle timer (PT1H) + interrupting stop event-subprocess +
   stop Task profile + singleton guard + restart-resume.
@@ -41,10 +41,10 @@ Resume point for a fresh session. Read this first, then the spec + PRD + issue f
 
 ## Locked design decisions
 
-- **Topology:** single-site DIC-local; external MEDIC REST API (not DSF). One running instance per DIC.
-- **MEDIC contract (confirmed by platform email):** `POST {apiUrl}/api/medic-import`, body = FHIR `Bundle`
+- **Topology:** single-site DIC-local; external ATMP register REST API (not DSF). One running instance per DIC.
+- **Register contract (confirmed by platform email):** `POST {apiUrl}/api/medic-import`, body = FHIR `Bundle`
   `type collection` of bare Observations. **Upsert by `Observation.id`** → re-sends harmless (must send
-  **stable id**, confirmed sites have them). `subject.reference = Patient/<pseudonym>` must pre-exist at MEDIC
+  **stable id**, confirmed sites have them). `subject.reference = Patient/<pseudonym>` must pre-exist at the register
   or request errors. Auth header `MEDIC-API-KEY` = base64 `{"bhz":…,"apiKey":…}`, **one per endpoint/BHZ**.
   Staging `https://staging.app.integrate-atmp.de`.
 - **Run model:** self-recurring timer loop, default **PT1H** (Task input override); clean stop via
@@ -67,7 +67,7 @@ Resume point for a fresh session. Read this first, then the spec + PRD + issue f
 - **Test seams (3):** pure `ObservationBundleFactory` unit test (like NCT `TransactionBundleFactoryTest`);
   `fhir/profile/{TaskProfileTest, ActivityDefinitionProfileTest}`; `AtmpProcessPluginDefinitionTest`.
   E2E via Mockoon = manual in v1.
-- **Test-setup:** install on **dic1** only (dic2 = Issue E); Mockoon mock for `/api/medic-import`; seed the
+- **Test-setup:** install on **dic1** only (dic2 = Issue E); Mockoon register mock for `/api/medic-import`; seed the
   store via HTTP POST; **HAPI locally, Blaze in prod** (FHIR R4 search, config-only switch).
 
 ## Reference plugins (in-repo, read these when implementing)
@@ -82,7 +82,7 @@ Resume point for a fresh session. Read this first, then the spec + PRD + issue f
   (`AbstractServiceDelegate`+`doExecute`); port idioms to v2.
 
 ## Open items / to confirm
-- With MEDIC/endpoint institution: that `/api/medic-import` accepts the per-subject `collection` bundle and its
+- With the register/endpoint institution: that `/api/medic-import` accepts the per-subject `collection` bundle and its
   per-entry vs whole-request error behaviour; final decision on forwarding local `Observation.identifier` (kept for now).
 - Toolchain: Java 25 + `github-mii` `read:packages` token must be available to build.
 

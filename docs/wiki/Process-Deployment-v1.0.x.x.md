@@ -2,14 +2,14 @@
 
 This page describes how to deploy the ATMP DSF process plugin into a DSF BPE.
 
-The plugin is installed at each participating DIC. Each site runs its own process instance and sends data under its own MEDIC API key.
+The plugin is installed at each participating DIC. Each site runs its own process instance and sends data under its own register API key.
 
 ## Requirements
 
 - DSF BPE compatible with DSF process API v2.
 - Java runtime compatible with the plugin build target.
 - Network access from the BPE to the local clinical FHIR store.
-- Network access from the BPE to the MEDIC / integrate-ATMP API.
+- Network access from the BPE to the ATMP register (integrate-ATMP) API.
 - A site-specific `MEDIC-API-KEY` stored as a secret file.
 - A configured FHIR client connection for the local clinical FHIR store.
 
@@ -57,7 +57,7 @@ The plugin registers the following artifacts:
 
 Add the required ATMP environment variables to the BPE deployment configuration.
 
-Mount the MEDIC API key as a secret file and point `DE_UKHD_ATMP_API_KEY_FILE` to that file.
+Mount the register API key as a secret file and point `DE_UKHD_ATMP_API_KEY_FILE` to that file.
 
 Example:
 

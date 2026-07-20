@@ -1,8 +1,8 @@
 # ATMP Process Description v1.0.x.x
 
-The ATMP DSF process plugin transfers laboratory data for ATMP study participants from a participating DIC to the external MEDIC / integrate-ATMP REST API.
+The ATMP DSF process plugin transfers laboratory data for ATMP study participants from a participating DIC to the external ATMP register (integrate-ATMP) REST API.
 
-The process runs in the local DSF BPE of the participating DIC. It reads from the site's local clinical FHIR store and sends pseudonymized FHIR `Observation` bundles to MEDIC.
+The process runs in the local DSF BPE of the participating DIC. It reads from the site's local clinical FHIR store and sends pseudonymized FHIR `Observation` bundles to the register.
 
 It is important to distinguish between the DSF FHIR server and the local clinical FHIR store.
 
@@ -11,16 +11,16 @@ The DSF FHIR server contains the DSF process resources and Tasks used to start a
 ## Topology
 
 ```text
-Local clinical FHIR store        Local DSF BPE                  MEDIC REST API
+Local clinical FHIR store        Local DSF BPE                  ATMP register REST API
 ResearchStudy             -->   ATMP process loop        -->   POST /api/medic-import
 ResearchSubject                 query subjects
 Patient                         query Observations
 Observation                     pseudonymize and minimize
 ```
 
-The MEDIC endpoint is an external REST API. This process is not a DSF-to-DSF transfer.
+The register endpoint is an external REST API. This process is not a DSF-to-DSF transfer.
 
-There is no DMS, no receive-side DSF process, no DSF message exchange with MEDIC, no public/private key exchange, and no encrypted bundle retrieval by a remote DSF endpoint.
+There is no DMS, no receive-side DSF process, no DSF message exchange with the register, no public/private key exchange, and no encrypted bundle retrieval by a remote DSF endpoint.
 
 ## ATMP Data Transfer Process
 
@@ -45,7 +45,7 @@ Each cycle performs the following steps:
 - Preserve the source `Observation.id`.
 - Preserve the local `Observation.identifier`.
 - Remove fields that are not part of the agreed outgoing data shape.
-- Send the bundle to MEDIC with the `MEDIC-API-KEY` header.
+- Send the bundle to the register with the `MEDIC-API-KEY` header.
 
 The first time a subject is seen by a running process instance, the process sends all matching Observations for that subject.
 
@@ -59,7 +59,7 @@ The outgoing request body is a FHIR R4 `Bundle` with `type=collection`.
 
 Each bundle contains the matching `Observation` resources for one ATMP study participant.
 
-The source `Observation.id` is kept unchanged. MEDIC uses this id for upsert behavior, so re-sends update existing records instead of creating duplicates.
+The source `Observation.id` is kept unchanged. The register uses this id for upsert behavior, so re-sends update existing records instead of creating duplicates.
 
 The local patient reference is not sent. The outgoing subject reference is always:
 
@@ -77,4 +77,4 @@ The failed subject is not marked as successfully handled and is retried in a lat
 
 Errors are appended to the start Task output with audit details such as pseudonym, timestamp and cause.
 
-The MEDIC API key and local patient identity must not be written to logs or Task output.
+The register API key and local patient identity must not be written to logs or Task output.

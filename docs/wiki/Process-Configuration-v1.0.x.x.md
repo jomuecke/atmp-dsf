@@ -21,7 +21,7 @@ This is not the DSF FHIR endpoint. It must point to the FHIR store that contains
 - Property: `de.ukhd.atmp.api.url`
 - Required: Yes
 - Processes: `ukhdde_atmpDataTransfer`
-- Description: Base URL of the MEDIC / integrate-ATMP REST API.
+- Description: Base URL of the ATMP register (integrate-ATMP) REST API.
 - Example: `https://staging.app.integrate-atmp.de`
 
 The process sends bundles to:
@@ -35,7 +35,7 @@ The process sends bundles to:
 - Property: `de.ukhd.atmp.api.key.file`
 - Required: Yes
 - Processes: `ukhdde_atmpDataTransfer`
-- Description: File containing the MEDIC API key for this site.
+- Description: File containing the register API key for this site.
 - Recommendation: Use a Docker secret file.
 - Example: `/run/secrets/atmp_medic_api_key`
 
@@ -105,7 +105,7 @@ This value can be overridden per process instance by the `timer-interval` input 
 
 The buffer absorbs clock skew between the BPE and the local FHIR store.
 
-Overlapping re-sends are acceptable because MEDIC upserts by `Observation.id`.
+Overlapping re-sends are acceptable because the register upserts by `Observation.id`.
 
 ## Task Inputs
 

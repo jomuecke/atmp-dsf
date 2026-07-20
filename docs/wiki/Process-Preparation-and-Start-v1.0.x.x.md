@@ -6,9 +6,9 @@ The DSF FHIR server and the local clinical FHIR store are different servers.
 
 The DSF FHIR server receives the start and stop Tasks. The local clinical FHIR store contains the ATMP study data that is read by the process.
 
-## 1. Prepare MEDIC
+## 1. Prepare the ATMP Register
 
-Before starting the process, MEDIC must know the ATMP pseudonym patients used by the site.
+Before starting the process, the register must know the ATMP pseudonym patients used by the site.
 
 For every outgoing Observation, the plugin writes:
 
@@ -16,7 +16,7 @@ For every outgoing Observation, the plugin writes:
 Observation.subject.reference = Patient/<ATMP pseudonym>
 ```
 
-If MEDIC does not know that pseudonym, the subject bundle may be rejected.
+If the register does not know that pseudonym, the subject bundle may be rejected.
 
 ## 2. Prepare the Local Clinical FHIR Store
 
@@ -232,9 +232,9 @@ Subject-level failures are appended to the start Task output.
 
 Common problems:
 
-- MEDIC API URL is not reachable from the BPE container.
+- Register API URL is not reachable from the BPE container.
 - `MEDIC-API-KEY` file is missing, empty or wrong.
-- MEDIC does not know the ATMP pseudonym Patient.
+- The register does not know the ATMP pseudonym Patient.
 - The local FHIR store client id is wrong.
 - The configured `ResearchStudy` identifier does not match local data.
 - The configured LOINC list does not match the available Observations.

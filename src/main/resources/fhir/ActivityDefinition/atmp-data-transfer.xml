@@ -159,7 +159,7 @@
 	<version value="#{version}" />
 	<name value="ATMP Data Transfer" />
 	<title value="ATMP data transfer process" />
-	<subtitle value="Sends pseudonymized ATMP-study laboratory Observations to the MEDIC REST API" />
+	<subtitle value="Sends pseudonymized ATMP-study laboratory Observations to the ATMP register REST API" />
 	<!-- status managed by bpe -->
 	<status value="unknown" />
 	<experimental value="false" />
@@ -173,6 +173,6 @@
 			<value value="info@ukhd.de" />
 		</telecom>
 	</contact>
-	<description value="Process to collect the ATMP-study participants' laboratory Observations from the local FHIR store and send them pseudonymized to the external MEDIC / integrate-ATMP REST API" />
+	<description value="Process to collect the ATMP-study participants' laboratory Observations from the local FHIR store and send them pseudonymized to the external ATMP register (integrate-ATMP) REST API" />
 	<kind value="Task" />
 </ActivityDefinition>

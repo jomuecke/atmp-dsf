@@ -6,37 +6,37 @@ Status: design agreed (grilling session 2026-06). Ready to build.
 
 A DSF process plugin that, **on each participating DIC**, periodically collects that
 site's ATMP-study laboratory `Observation`s from the **local clinical FHIR store**,
-pseudonymizes them, and pushes them to the **external MEDIC / integrate-ATMP REST API**.
+pseudonymizes them, and pushes them to the **external ATMP register (integrate-ATMP) REST API**.
 
 - **Not** a DSF-to-DSF transfer. There is no DMS/HRP in the data path and no `receive`
-  side. The only "remote" system is the MEDIC REST API, reached over HTTP — invisible
+  side. The only "remote" system is the register's REST API, reached over HTTP — invisible
   to DSF authorization.
 - Authored by **UKHD**, **distributed to all DICs participating in the ATMP study**.
 - One running process instance per DIC; each DIC sends under its own BHZ identity
   (its `MEDIC-API-KEY`).
 
 ```
-DIC clinical FHIR store            DIC BPE (this plugin)                MEDIC REST API
-  ResearchStudy (ATMP)   --query-->  loop on timer:                       (external, DKFZ)
+DIC clinical FHIR store            DIC BPE (this plugin)                ATMP register REST API
+  ResearchStudy (ATMP)   --query-->  loop on timer:                       (external)
   ResearchSubject(+psn)              - find ATMP subjects
   Patient                            - per subject: collect labs,
   Observation (Lab)                    pseudonymize, build bundle  --POST-->  /api/medic-import
                                      - wait (interval), repeat
 ```
 
-## 2. External API Contract (MEDIC / integrate-ATMP)
+## 2. External API Contract (ATMP register / integrate-ATMP)
 
 Confirmed by the platform owner (email) + the Postman collection.
 
 - **Endpoint:** `POST {apiUrl}/api/medic-import` — body is a FHIR **`Bundle` of `type: collection`**
   whose entries are bare `Observation` resources (no `request.method`, not a transaction bundle).
   A single-resource variant `POST {apiUrl}/api/medic-import/observation` also exists.
-- **Idempotency:** MEDIC stores each Observation **by entry `id`** and **updates** the record
+- **Idempotency:** the register stores each Observation **by entry `id`** and **updates** the record
   when the same `id` arrives again → **upsert by `Observation.id`**. The receiver never has to
   dedupe manually. *This is contingent on us sending a **stable, deterministic `Observation.id`**
   per source observation across runs.*
 - **Subject matching:** `Observation.subject.reference` must be `Patient/<PID>` where `<PID>`
-  already exists on the MEDIC side. **`<PID>` is the ATMP pseudonym.** A non-existent PID makes
+  already exists on the register side. **`<PID>` is the ATMP pseudonym.** A non-existent PID makes
   the request fail.
 - **Auth:** header `MEDIC-API-KEY`, value = base64 of `{"bhz":"<bhz-id>","apiKey":"<key>"}`,
   **one per endpoint** (= the sending BHZ). Secret per site.
@@ -70,7 +70,7 @@ Resolution path per subject: `ResearchSubject.individual` → `Patient` → `Obs
 - **Restart semantics:**
   - BPE crash/redeploy → Camunda persists process variables (watermark + seen-set) → the timer
     resumes, no data loss, no re-bulk.
-  - Explicit cancel + fresh start → re-bulk everything. **Harmless** because MEDIC upserts by `id`.
+  - Explicit cancel + fresh start → re-bulk everything. **Harmless** because the register upserts by `id`.
 
 ### 4.2 Per cycle (mirrors `mii-process-report` `report-autostart.bpmn`)
 1. `SetTimer` — read `timer-interval` (Task input, else env/constant default) into the process
@@ -92,14 +92,14 @@ Resolution path per subject: `ResearchSubject.individual` → `Patient` → `Obs
      **do not** mark seen / advance state (retried next cycle), continue to next subject.
 4. After all subjects: advance the **global watermark** (see §4.3).
 5. **Cycle timer** waits the interval, then loop to step 2.
-- **Whole-cycle failure** (MEDIC unreachable / store down): log, skip this tick, retry next
+- **Whole-cycle failure** (register unreachable / store down): log, skip this tick, retry next
   interval. Never terminate.
 
 ### 4.3 Watermark (incremental detection)
 - **Single global watermark** = timestamp of the last completed cycle, stored as a process
   variable.
 - To absorb BPE↔FHIR clock skew, set it to **cycle-start − small buffer (a few minutes)** and
-  query with `gt`. Any harmless re-sends are absorbed by MEDIC's upsert.
+  query with `gt`. Any harmless re-sends are absorbed by the register's upsert.
 - **Bulk-on-first-sight** closes the late-enrollment hole: a subject enrolled *after* its labs
   were loaded has Observations with old `_lastUpdated`; on first sight it gets a **full**
   (un-watermarked) query, then goes incremental. (Confirmed ETL pattern: labs pre-exist,
@@ -131,7 +131,7 @@ Per-endpoint, Spring `@Value("${…:default}")` + `@ProcessDocumentation`. Secre
 
 | Knob | Source | Notes |
 |---|---|---|
-| MEDIC base URL | env `…atmp.api.url` | default `https://staging.app.integrate-atmp.de` |
+| Register base URL | env `…atmp.api.url` | default `https://staging.app.integrate-atmp.de` |
 | `MEDIC-API-KEY` | **docker secret file** `…atmp.api.key.file` → `/run/secrets/atmp_api_key` | per-BHZ identity; never logged |
 | LOINC code list | env `…atmp.observation.loinc.codes` | comma-separated (split like existing list props) |
 | ATMP study identifier | env `…atmp.study.identifier.system` + `…value` | default value `ATMP` |
@@ -156,12 +156,12 @@ Per-endpoint, Spring `@Value("${…:default}")` + `@ProcessDocumentation`. Secre
 - `AtmpProcessPluginDeploymentStateListener` (optional, validate config/resources on deploy).
 - `service/` (implement `dev.dsf.bpe.v2.activity.ServiceTask`):
   `SetTimer` (mirror report), `QueryResearchSubjects`, `BuildObservationBundle`
-  (pseudonymize + minimize + watermark/first-sight), `SendToMedic`, `HandleError`.
-- `client/`: `MedicClient` (spring-web `RestClient`, `MEDIC-API-KEY` header — fresh thin client,
+  (pseudonymize + minimize + watermark/first-sight), `SendToRegister`, `HandleError`.
+- `client/`: `RegisterClient` (spring-web `RestClient`, `MEDIC-API-KEY` header — fresh thin client,
   not NCT's fTTP/OAuth base). Local FHIR-store reads via reused `mii-processes-common` FHIR client.
 - `variables/`: subject-reference value + serializer; watermark (`Instant`) and seen-set
   (`Set<String>`) carried as process variables.
-- `spring/config/`: `AtmpConfig`, `DicFhirStoreClientConfig`, `MedicClientConfig`.
+- `spring/config/`: `AtmpConfig`, `DicFhirStoreClientConfig`, `RegisterClientConfig`.
 - `bpe/atmp-data-transfer.bpmn`: reworked draft — timer loop + multi-instance-per-subject +
   interrupting stop event-subprocess + per-task boundary-error → `HandleError`. (Drop the draft's
   "resolve TTP pseudonym".)
@@ -176,13 +176,13 @@ Per-endpoint, Spring `@Value("${…:default}")` + `@ProcessDocumentation`. Secre
 - `ProcessPluginDefinitionTest`.
 - FHIR profile validation tests (Task profiles, ActivityDefinition) via `dsf-fhir-validation`.
 - Service unit tests: `BuildObservationBundle` (subject→pseudonym rewrite, stable id, LOINC+status
-  filter, minimization), watermark + first-sight logic, `SendToMedic` (mock HTTP, header assertion).
+  filter, minimization), watermark + first-sight logic, `SendToRegister` (mock HTTP, header assertion).
 
 ## 8. Test-Setup Integration (`mii-processes-test-setup`)
 
 - **Install on `dic1-bpe` only** (for now). Compose override mounts the plugin jar + the
   `atmp_api_key` secret + env (`atmp.api.url` → Mockoon, LOINC list, study identifier).
-- **MEDIC mock:** add `docker/mockoon/medic-import-api.json` mocking `POST /api/medic-import`
+- **Register mock:** add `docker/mockoon/medic-import-api.json` mocking `POST /api/medic-import`
   (+ `/observation`) → `200`, asserting the `MEDIC-API-KEY` header (mirror `nct-fttp-api.json`).
 - **Clinical store:** `dic1-fhir-store` — neither HAPI nor Blaze auto-starts (manual start).
   Use **HAPI locally**; **Blaze in prod**. The FHIR-store client uses standard FHIR R4 search, so
@@ -197,17 +197,17 @@ Per-endpoint, Spring `@Value("${…:default}")` + `@ProcessDocumentation`. Secre
 
 1. Scaffold module (`pom.xml`, package, `ProcessPluginDefinition`, `META-INF/services`) — mirror `report`.
 2. FHIR artifacts (ActivityDefinition, Task profiles, CodeSystem/ValueSet) + profile tests → green.
-3. `MedicClient` + `SendToMedic` (+ mock test).
+3. `RegisterClient` + `SendToRegister` (+ mock test).
 4. `QueryResearchSubjects` + `BuildObservationBundle` (pseudonymize, filter, minimize) + tests.
 5. `SetTimer` + watermark/first-sight state + BPMN (timer loop, multi-instance, stop, error).
 6. Test-setup: Mockoon mock, dic1 override + secret/env, seed bundle, end-to-end run.
 7. Add `dic2` (second BHZ) once green.
 
 ## 10. Risks / Open Items
-- Confirm MEDIC accepts the per-subject `collection` bundle shape; confirm per-entry vs
+- Confirm the register accepts the per-subject `collection` bundle shape; confirm per-entry vs
   whole-request error behaviour (per-subject bundles already isolate failures).
 - Finalize whether to forward the local `Observation.identifier` (with endpoint institution).
 - **Stable `Observation.id`** must equal the source id (or a deterministic derivation) — never
-  regenerate, or MEDIC's upsert breaks.
+  regenerate, or the register's upsert breaks.
 - Confirm default timer interval `PT1H`.
 - Java 25 toolchain must be available locally (inherited from `mii-processes-common 2.0.0.0`).
