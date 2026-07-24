@@ -52,12 +52,34 @@ public final class AuditLog
 	 */
 	public static String subjectError(String pseudonym, String patientReference, Throwable cause, Instant timestamp)
 	{
-		Objects.requireNonNull(pseudonym, "pseudonym");
 		Objects.requireNonNull(cause, "cause");
+
+		return subjectProblem(pseudonym, patientReference, cause.getClass().getSimpleName() + ": " + safeMessage(cause),
+				timestamp);
+	}
+
+	/**
+	 * Audit line for a subject-level problem that is not an exception — the register acknowledged the request but did
+	 * not accept all of it, or Observations were left out of the bundle because the register's schema would reject
+	 * them: {@code "[<timestamp>] subject <pseudonym>: <detail>"}. {@code detail} is redacted like
+	 * {@link #subjectError(String, String, Throwable, Instant)}.
+	 *
+	 * @param pseudonym
+	 *            the subject's ATMP pseudonym, not <code>null</code>
+	 * @param patientReference
+	 *            the local patient reference to redact, or <code>null</code> for none
+	 * @param detail
+	 *            what went wrong, not <code>null</code>
+	 * @param timestamp
+	 *            when it happened, not <code>null</code>
+	 */
+	public static String subjectProblem(String pseudonym, String patientReference, String detail, Instant timestamp)
+	{
+		Objects.requireNonNull(pseudonym, "pseudonym");
+		Objects.requireNonNull(detail, "detail");
 		Objects.requireNonNull(timestamp, "timestamp");
 
-		String message = redact(safeMessage(cause), patientReference, pseudonym);
-		return "[" + timestamp + "] subject " + pseudonym + ": " + cause.getClass().getSimpleName() + ": " + message;
+		return "[" + timestamp + "] subject " + pseudonym + ": " + redact(detail, patientReference, pseudonym);
 	}
 
 	/**

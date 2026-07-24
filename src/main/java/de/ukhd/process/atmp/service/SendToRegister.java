@@ -10,6 +10,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import de.ukhd.process.atmp.ConstantsAtmp;
 import de.ukhd.process.atmp.audit.AuditLog;
+import de.ukhd.process.atmp.client.RegisterAck;
 import de.ukhd.process.atmp.client.RegisterClient;
 import de.ukhd.process.atmp.variables.SeenSubjects;
 import de.ukhd.process.atmp.variables.SubjectEntry;
@@ -66,11 +67,28 @@ public class SendToRegister implements ServiceTask, InitializingBean
 			Bundle bundle = variables.getFhirResource(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE);
 
 			if (!bundle.hasEntry())
-				logger.info("No matching Observations for current subject, nothing sent to register");
-			else
 			{
-				String bundleJson = api.getFhirContext().newJsonParser().encodeResourceToString(bundle);
-				registerClient.send(bundleJson);
+				logger.info("No matching Observations for current subject, nothing sent to register");
+				markSeen(variables, pseudonym);
+				return;
+			}
+
+			String bundleJson = api.getFhirContext().newJsonParser().encodeResourceToString(bundle);
+			RegisterAck ack = registerClient.send(bundleJson);
+
+			if (!ack.isFullyAccepted())
+			{
+				// The register answered 2xx but did not store everything: an unknown PID (skippable), a hard failure,
+				// or an entry its schema rejected. Treating this as success would hide data loss behind a green
+				// status, so the subject stays unseen and is re-sent in full next cycle — for an unknown PID that
+				// means it is backfilled automatically once the pseudonym is provisioned in the register.
+				logger.warn("Register did not accept everything for subject with pseudonym '{}': {}", pseudonym,
+						ack.describeProblems());
+				AuditLog.appendError(api, variables, AuditLog.subjectProblem(pseudonym, subject.patientReference(),
+						"not fully accepted by the register, will be re-sent next cycle: " + ack.describeProblems(),
+						Instant.now()));
+				unmarkSeen(variables, pseudonym);
+				return;
 			}
 
 			// Advance state only after the subject has been handled without error (an empty bundle is a valid no-op
@@ -78,26 +96,41 @@ public class SendToRegister implements ServiceTask, InitializingBean
 			// (bulk-on-first-sight).
 			markSeen(variables, pseudonym);
 		}
-		catch (RegisterClient.RegisterUnreachableException exception)
+		catch (RegisterClient.RegisterException exception)
 		{
-			// Whole-cycle failure (Issue D): the register is down for everyone, not just this subject. Audit once,
-			// mark the cycle aborted so the remaining subjects are skipped quietly, and keep the watermark from
-			// advancing next cycle. The loop itself survives and retries on the next interval.
-			logger.warn("Register unreachable, aborting remaining cycle: {}", exception.getMessage(), exception);
-			AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
-			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
-			unmarkSeen(variables, pseudonym);
+			if (exception.affectsWholeCycle())
+			{
+				// Whole-cycle failure (Issue D): the register is unreachable, unhealthy, or rejecting our API key — it
+				// fails identically for every subject, not just this one. Audit once, mark the cycle aborted so the
+				// remaining subjects are skipped quietly, and keep the watermark from advancing next cycle. The loop
+				// itself survives and retries on the next interval.
+				logger.warn("Register not usable for this cycle, aborting the remaining subjects: {}",
+						exception.getMessage(), exception);
+				AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
+				variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
+				unmarkSeen(variables, pseudonym);
+			}
+			else
+				auditSubjectFailure(api, variables, subject, exception);
 		}
 		catch (Exception exception)
 		{
-			// Per-subject isolation (Issue D): a failed send must not abort the cycle. Record an auditable error on the
-			// start Task and unmark the subject so its state is not advanced and it is retried in full next cycle.
-			logger.warn("Failed sending bundle for subject with pseudonym '{}' to register: {}", pseudonym,
-					exception.getMessage(), exception);
-			AuditLog.appendError(api, variables,
-					AuditLog.subjectError(pseudonym, subject.patientReference(), exception, Instant.now()));
-			unmarkSeen(variables, pseudonym);
+			auditSubjectFailure(api, variables, subject, exception);
 		}
+	}
+
+	/**
+	 * Per-subject isolation (Issue D): a failed send must not abort the cycle. Records an auditable error on the start
+	 * Task and unmarks the subject so its state is not advanced and it is retried in full next cycle.
+	 */
+	private void auditSubjectFailure(ProcessPluginApi api, Variables variables, SubjectEntry subject,
+			Exception exception)
+	{
+		logger.warn("Failed sending bundle for subject with pseudonym '{}' to register: {}", subject.pseudonym(),
+				exception.getMessage(), exception);
+		AuditLog.appendError(api, variables,
+				AuditLog.subjectError(subject.pseudonym(), subject.patientReference(), exception, Instant.now()));
+		unmarkSeen(variables, subject.pseudonym());
 	}
 
 	private void markSeen(Variables variables, String pseudonym)

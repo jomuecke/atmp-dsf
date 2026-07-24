@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Observation;
@@ -18,6 +19,8 @@ import ca.uhn.fhir.rest.client.api.IGenericClient;
 import de.ukhd.process.atmp.ConstantsAtmp;
 import de.ukhd.process.atmp.audit.AuditLog;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
+import de.ukhd.process.atmp.fhir.ObservationBundleFactory.RejectedObservation;
+import de.ukhd.process.atmp.fhir.ObservationBundleFactory.SubjectBundle;
 import de.ukhd.process.atmp.variables.SubjectEntry;
 import dev.dsf.bpe.v2.ProcessPluginApi;
 import dev.dsf.bpe.v2.activity.ServiceTask;
@@ -31,6 +34,9 @@ import dev.dsf.bpe.v2.variables.Variables;
 public class CreateSubjectBundle implements ServiceTask, InitializingBean
 {
 	private static final Logger logger = LoggerFactory.getLogger(CreateSubjectBundle.class);
+
+	/** Cap on how many rejected Observations are named in a single audit entry, so it stays readable. */
+	private static final int MAX_AUDITED_REJECTIONS = 5;
 
 	private final String fhirServerId;
 	private final List<String> loincCodes;
@@ -76,10 +82,13 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 					() -> new RuntimeException("FHIR client '" + fhirServerId + "' not configured in DSF BPE"));
 
 			List<Observation> observations = findObservations(client, subject.patientReference(), lowerBound);
-			Bundle bundle = observationBundleFactory.createFrom(observations, pseudonym);
+			SubjectBundle subjectBundle = observationBundleFactory.createFrom(observations, pseudonym);
+			Bundle bundle = subjectBundle.bundle();
 
 			logger.info("Created collection bundle with {} Observation(s) for subject with pseudonym '{}' ({} query)",
 					bundle.getEntry().size(), pseudonym, lowerBound.isPresent() ? "incremental" : "full");
+
+			auditRejectedObservations(api, variables, subject, subjectBundle.rejected());
 
 			variables.setFhirResource(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_BUNDLE, bundle);
 		}
@@ -96,6 +105,32 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 					AuditLog.subjectError(pseudonym, subject.patientReference(), exception, Instant.now()));
 			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SUBJECT_ERROR, true);
 		}
+	}
+
+	/**
+	 * Records Observations that were selected for transfer but cannot satisfy the register's import schema (e.g. a
+	 * local store that does not populate {@code meta.source}, or a date-only {@code effectiveDateTime}). They are left
+	 * out of the bundle rather than making the whole subject fail, but must not disappear silently — the rest of the
+	 * subject is still sent, so this is a warning, not a per-subject error.
+	 */
+	private void auditRejectedObservations(ProcessPluginApi api, Variables variables, SubjectEntry subject,
+			List<RejectedObservation> rejected)
+	{
+		if (rejected.isEmpty())
+			return;
+
+		String detail = rejected.stream().limit(MAX_AUDITED_REJECTIONS).map(RejectedObservation::toString)
+				.collect(Collectors.joining("; "));
+		if (rejected.size() > MAX_AUDITED_REJECTIONS)
+			detail += "; … and " + (rejected.size() - MAX_AUDITED_REJECTIONS) + " more";
+
+		logger.warn("{} Observation(s) of subject with pseudonym '{}' not sent, rejected by the register's schema: {}",
+				rejected.size(), subject.pseudonym(), detail);
+		AuditLog.appendError(api, variables,
+				AuditLog.subjectProblem(
+						subject.pseudonym(), subject.patientReference(), rejected.size()
+								+ " Observation(s) not sent, would be rejected by the register's schema: " + detail,
+						Instant.now()));
 	}
 
 	private Instant watermark(Variables variables)

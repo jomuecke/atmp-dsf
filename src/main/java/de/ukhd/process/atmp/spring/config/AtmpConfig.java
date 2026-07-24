@@ -43,6 +43,16 @@ public class AtmpConfig
 	private String loincCodes;
 
 	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "ISO-8601 timeout for establishing the connection to the register API", example = "PT10S")
+	@Value("${de.ukhd.atmp.api.connect.timeout:PT10S}")
+	private String apiConnectTimeout;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "ISO-8601 timeout for a complete register API request/response; without it a hung register would block the cycle indefinitely", example = "PT60S")
+	@Value("${de.ukhd.atmp.api.request.timeout:PT60S}")
+	private String apiRequestTimeout;
+
+	@ProcessDocumentation(processNames = {
 			"ukhdde_atmpDataTransfer" }, description = "Identifier system of the ATMP ResearchStudy in the local FHIR store, leave empty to match by identifier value only")
 	@Value("${de.ukhd.atmp.study.identifier.system:}")
 	private String studyIdentifierSystem;
@@ -74,7 +84,8 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClient registerClient()
 	{
-		return new RegisterClient(apiUrl, apiKeyFile);
+		return new RegisterClient(apiUrl, apiKeyFile, Duration.parse(apiConnectTimeout),
+				Duration.parse(apiRequestTimeout));
 	}
 
 	@Bean

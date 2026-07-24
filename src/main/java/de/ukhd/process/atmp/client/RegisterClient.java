@@ -7,28 +7,111 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
  * {@code {apiUrl}/api/medic-import}, authenticated with the site's API key sent as {@code MEDIC-API-KEY} header. The
  * key is read from a docker-secret file and never logged.
+ *
+ * <p>
+ * Failures are classified for the caller (see {@link RegisterException#affectsWholeCycle()}), because they need
+ * different handling: a misconfigured API key or an unreachable/unhealthy register fails identically for every subject
+ * and should stop the cycle instead of producing one audit entry per subject, whereas a rejected bundle is specific to
+ * the subject being sent and must not stop the others.
  */
 public class RegisterClient implements InitializingBean
 {
+	/** Base class of the failures the register can produce, classified by blast radius. */
+	public abstract static class RegisterException extends RuntimeException
+	{
+		protected RegisterException(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
+
+		/**
+		 * {@code true} if the failure affects every subject of the cycle (transport, auth, register health) rather than
+		 * just the bundle that was sent.
+		 */
+		public abstract boolean affectsWholeCycle();
+	}
+
 	/**
-	 * Thrown when the register cannot be reached at all (connection/IO failure, as opposed to a per-request error
-	 * status): the whole cycle is affected, not just the current subject.
+	 * Thrown when the register cannot be reached at all (connection failure, timeout, IO error, as opposed to a
+	 * per-request error status): the whole cycle is affected, not just the current subject.
 	 */
-	public static class RegisterUnreachableException extends RuntimeException
+	public static class RegisterUnreachableException extends RegisterException
 	{
 		public RegisterUnreachableException(String message, Throwable cause)
 		{
 			super(message, cause);
+		}
+
+		@Override
+		public boolean affectsWholeCycle()
+		{
+			return true;
+		}
+	}
+
+	/**
+	 * Thrown on HTTP 401: the {@code MEDIC-API-KEY} is missing, malformed, or its {@code bhz}/{@code apiKey} is not
+	 * accepted ({@code E060}&ndash;{@code E063}). A configuration fault — every subject would fail the same way, so it
+	 * stops the cycle rather than retrying per subject.
+	 */
+	public static class RegisterAuthException extends RegisterException
+	{
+		public RegisterAuthException(String message)
+		{
+			super(message, null);
+		}
+
+		@Override
+		public boolean affectsWholeCycle()
+		{
+			return true;
+		}
+	}
+
+	/** Thrown on HTTP 5xx: the register is up but unhealthy, which again affects every subject of the cycle. */
+	public static class RegisterUnavailableException extends RegisterException
+	{
+		public RegisterUnavailableException(String message)
+		{
+			super(message, null);
+		}
+
+		@Override
+		public boolean affectsWholeCycle()
+		{
+			return true;
+		}
+	}
+
+	/**
+	 * Thrown when the register rejected this specific request — an {@code E064} bundle-schema failure (HTTP 400), any
+	 * other 4xx, or an acknowledgement that could not be read. Isolated to the current subject.
+	 */
+	public static class RegisterRejectedException extends RegisterException
+	{
+		public RegisterRejectedException(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
+
+		@Override
+		public boolean affectsWholeCycle()
+		{
+			return false;
 		}
 	}
 
@@ -37,16 +120,40 @@ public class RegisterClient implements InitializingBean
 	public static final String IMPORT_PATH = "/api/medic-import";
 	public static final String API_KEY_HEADER = "MEDIC-API-KEY";
 
+	public static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+	public static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(60);
+
+	/** Upper bound on how much of an error body is carried into exception messages, logs and audit entries. */
+	private static final int MAX_ERROR_BODY_LENGTH = 500;
+
 	private final String apiUrl;
 	private final Path apiKeyFile;
+	private final Duration requestTimeout;
 
-	private final HttpClient httpClient = HttpClient.newHttpClient();
+	private final HttpClient httpClient;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 	private String apiKey;
 
 	public RegisterClient(String apiUrl, String apiKeyFile)
 	{
+		this(apiUrl, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
+	}
+
+	/**
+	 * @param connectTimeout
+	 *            how long to wait for the TCP/TLS connection, not <code>null</code>
+	 * @param requestTimeout
+	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
+	 *            job thread indefinitely, not <code>null</code>
+	 */
+	public RegisterClient(String apiUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
+	{
 		this.apiUrl = apiUrl;
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
+		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
+
+		this.httpClient = HttpClient.newBuilder()
+				.connectTimeout(Objects.requireNonNull(connectTimeout, "connectTimeout")).build();
 	}
 
 	@Override
@@ -61,12 +168,25 @@ public class RegisterClient implements InitializingBean
 			throw new IllegalArgumentException("Register API key file '" + apiKeyFile + "' is empty");
 	}
 
-	public void send(String bundleJson)
+	/**
+	 * POSTs {@code bundleJson} to the register's import endpoint.
+	 *
+	 * <p>
+	 * A returned ack does not by itself mean the data arrived — see {@link RegisterAck#isFullyAccepted()}. The
+	 * {@code Content-Type} is {@code application/json} rather than {@code application/fhir+json}: the register is a
+	 * plain REST API validating a JSON body, not a FHIR server.
+	 *
+	 * @return the register's acknowledgement, never <code>null</code>
+	 * @throws RegisterException
+	 *             on transport failure or a non-2xx status, classified by {@link RegisterException#affectsWholeCycle()}
+	 */
+	public RegisterAck send(String bundleJson)
 	{
 		URI uri = URI.create(apiUrl.replaceAll("/+$", "") + IMPORT_PATH);
 
-		HttpRequest request = HttpRequest.newBuilder(uri).header("Content-Type", "application/fhir+json")
-				.header(API_KEY_HEADER, apiKey).POST(HttpRequest.BodyPublishers.ofString(bundleJson)).build();
+		HttpRequest request = HttpRequest.newBuilder(uri).header("Content-Type", "application/json")
+				.header("Accept", "application/json").header(API_KEY_HEADER, apiKey).timeout(requestTimeout)
+				.POST(HttpRequest.BodyPublishers.ofString(bundleJson)).build();
 
 		HttpResponse<String> response;
 		try
@@ -82,10 +202,66 @@ public class RegisterClient implements InitializingBean
 					"Could not reach register API at '" + uri + "': " + exception.getMessage(), exception);
 		}
 
-		if (response.statusCode() < 200 || response.statusCode() > 299)
-			throw new RuntimeException(
-					"Register API at '" + uri + "' returned status " + response.statusCode() + ": " + response.body());
+		int status = response.statusCode();
 
-		logger.info("Sent bundle to register API at '{}', status {}", uri, response.statusCode());
+		if (status == 401)
+			throw new RegisterAuthException("Register API at '" + uri + "' rejected the " + API_KEY_HEADER
+					+ " header (status 401): " + truncated(response.body())
+					+ " — E060 header missing, E061 unknown bhz, E062 wrong apiKey, E063 malformed header");
+
+		if (status >= 500)
+			throw new RegisterUnavailableException(
+					"Register API at '" + uri + "' returned status " + status + ": " + truncated(response.body()));
+
+		if (status < 200 || status > 299)
+			throw new RegisterRejectedException("Register API at '" + uri + "' rejected the bundle with status "
+					+ status + ": " + truncated(response.body()), null);
+
+		RegisterAck ack = parseAck(uri, response.body());
+
+		if (ack.isFullyAccepted())
+			logger.info("Sent bundle to register API at '{}', status {}, fully accepted", uri, status);
+		else
+			logger.warn("Register API at '{}' answered status {} but did not accept everything: {}", uri, status,
+					ack.describeProblems());
+
+		return ack;
+	}
+
+	private RegisterAck parseAck(URI uri, String body)
+	{
+		if (body == null || body.isBlank())
+		{
+			logger.warn("Register API at '{}' returned an empty acknowledgement body, assuming the bundle was accepted",
+					uri);
+			return RegisterAck.accepted();
+		}
+
+		try
+		{
+			JsonNode json = objectMapper.readTree(body);
+
+			if (!json.isObject())
+				throw new RegisterRejectedException(
+						"Register API at '" + uri + "' returned a non-object acknowledgement: " + truncated(body),
+						null);
+
+			return RegisterAck.from(json);
+		}
+		catch (IOException exception)
+		{
+			// Not knowing whether the data arrived must not read as success: treat it as a failure of this subject
+			throw new RegisterRejectedException("Could not read the acknowledgement of register API at '" + uri + "': "
+					+ exception.getMessage() + ", body: " + truncated(body), exception);
+		}
+	}
+
+	private String truncated(String body)
+	{
+		if (body == null)
+			return "";
+
+		return body.length() <= MAX_ERROR_BODY_LENGTH ? body
+				: body.substring(0, MAX_ERROR_BODY_LENGTH) + "… (truncated)";
 	}
 }

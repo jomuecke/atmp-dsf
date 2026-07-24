@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import ca.uhn.fhir.context.FhirContext;
 import de.ukhd.process.atmp.ConstantsAtmp;
+import de.ukhd.process.atmp.client.RegisterAck;
 import de.ukhd.process.atmp.client.RegisterClient;
 import dev.dsf.bpe.v2.ProcessPluginApi;
 import dev.dsf.bpe.v2.variables.Variables;
@@ -37,20 +38,29 @@ public class SendToRegisterTest
 	private static class FailingRegisterClient extends RegisterClient
 	{
 		private final RuntimeException failure;
+		private final RegisterAck ack;
 		private int sendCount;
 
 		FailingRegisterClient(RuntimeException failure)
 		{
+			this(failure, RegisterAck.accepted());
+		}
+
+		FailingRegisterClient(RuntimeException failure, RegisterAck ack)
+		{
 			super("http://register.test", "unused");
 			this.failure = failure;
+			this.ack = ack;
 		}
 
 		@Override
-		public void send(String bundleJson)
+		public RegisterAck send(String bundleJson)
 		{
 			sendCount++;
 			if (failure != null)
 				throw failure;
+
+			return ack;
 		}
 	}
 
@@ -113,6 +123,67 @@ public class SendToRegisterTest
 		assertFalse(seenSubjects().contains(PSEUDONYM));
 		assertEquals(1, startTask.getOutput().size());
 		assertTrue(((StringType) startTask.getOutputFirstRep().getValue()).getValue().contains("cycle skipped"));
+	}
+
+	@Test
+	public void testUnknownPidLeavesSubjectUnseenSoItIsResentAndAudited() throws Exception
+	{
+		// the register answers 201 / success:true for an unknown PID, only flagging it as a skippable failure — taking
+		// that as success would hide the data loss, and the subject must be re-sent once the PID is provisioned
+		RegisterAck ack = new RegisterAck(true, List.of(new RegisterAck.Failure("PID not found: ATMP-0001", true)),
+				List.of());
+		FailingRegisterClient client = new FailingRegisterClient(null, ack);
+
+		new SendToRegister(client).execute(api(), variables());
+
+		assertEquals(1, client.sendCount);
+		assertFalse("a skippable failure must not count as transferred", seenSubjects().contains(PSEUDONYM));
+		assertEquals(1, startTask.getOutput().size());
+		String audit = ((StringType) startTask.getOutputFirstRep().getValue()).getValue();
+		assertTrue(audit.contains("PID not found"));
+		assertTrue(audit.contains("skippable"));
+		assertFalse("a per-subject failure must not abort the cycle",
+				Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
+	}
+
+	@Test
+	public void testParseIssuesInAcknowledgementLeaveSubjectUnseenAndAudited() throws Exception
+	{
+		// entries the register's own schema rejected: reported inside a 201 with success:true
+		RegisterAck ack = new RegisterAck(true, List.of(), List.of("{\"path\":[\"entry\",0,\"resource\",\"meta\"]}"));
+
+		new SendToRegister(new FailingRegisterClient(null, ack)).execute(api(), variables());
+
+		assertFalse(seenSubjects().contains(PSEUDONYM));
+		assertEquals(1, startTask.getOutput().size());
+		assertTrue(((StringType) startTask.getOutputFirstRep().getValue()).getValue()
+				.contains("rejected by the register's schema"));
+	}
+
+	@Test
+	public void testAuthFailureAbortsCycleInsteadOfFailingEverySubjectSeparately() throws Exception
+	{
+		new SendToRegister(
+				new FailingRegisterClient(new RegisterClient.RegisterAuthException("status 401, E062 wrong apiKey")))
+				.execute(api(), variables());
+
+		assertTrue(Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
+		assertEquals(1, startTask.getOutput().size());
+		assertTrue(((StringType) startTask.getOutputFirstRep().getValue()).getValue().contains("cycle skipped"));
+	}
+
+	@Test
+	public void testBundleRejectionFailsOnlyTheCurrentSubject() throws Exception
+	{
+		new SendToRegister(new FailingRegisterClient(
+				new RegisterClient.RegisterRejectedException("status 400: {\"errorCode\":\"E064\"}", null)))
+				.execute(api(), variables());
+
+		assertFalse("a rejected bundle must not abort the cycle",
+				Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
+		assertFalse(seenSubjects().contains(PSEUDONYM));
+		assertEquals(1, startTask.getOutput().size());
+		assertTrue(((StringType) startTask.getOutputFirstRep().getValue()).getValue().contains("E064"));
 	}
 
 	@Test

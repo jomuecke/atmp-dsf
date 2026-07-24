@@ -107,6 +107,28 @@ The buffer absorbs clock skew between the BPE and the local FHIR store.
 
 Overlapping re-sends are acceptable because the register upserts by `Observation.id`.
 
+### DE_UKHD_ATMP_API_CONNECT_TIMEOUT
+
+- Property: `de.ukhd.atmp.api.connect.timeout`
+- Required: No
+- Processes: `ukhdde_atmpDataTransfer`
+- Description: ISO-8601 timeout for establishing the connection to the register API.
+- Default: `PT10S`
+- Example: `PT10S`
+
+### DE_UKHD_ATMP_API_REQUEST_TIMEOUT
+
+- Property: `de.ukhd.atmp.api.request.timeout`
+- Required: No
+- Processes: `ukhdde_atmpDataTransfer`
+- Description: ISO-8601 timeout for a complete register API request/response.
+- Default: `PT60S`
+- Example: `PT60S`
+
+Without this bound, a hung or very slow register would block the cycle's job thread indefinitely. A
+timeout is treated as an unreachable register: the current cycle is aborted and the loop retries on
+the next interval.
+
 ## Task Inputs
 
 The start Task can provide process-instance-specific inputs.

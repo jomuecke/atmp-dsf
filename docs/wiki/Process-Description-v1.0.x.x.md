@@ -69,12 +69,29 @@ Patient/<ATMP pseudonym>
 
 The ATMP pseudonym is read from `ResearchSubject.identifier.value`.
 
+### Register import schema
+
+The register's import API validates a shape that is stricter than FHIR R4 itself. The bundle and every Observation are built to satisfy it:
+
+- The bundle carries an `id` and a `meta.lastUpdated`.
+- Each Observation keeps `meta.versionId`, `meta.lastUpdated` and `meta.source`, forwarded unchanged from the local store. Local `meta.profile`, `tag` and `security` are dropped.
+- `effectiveDateTime` and every `meta.lastUpdated` carry an explicit numeric UTC offset (e.g. `+02:00`); a bare `Z`/Zulu suffix is rewritten to an offset because the register rejects `Z`.
+- Each Observation must have a complete `valueQuantity` (value, unit, system, code) and a second-precision `effectiveDateTime`.
+
+An Observation that cannot satisfy this — for example a local store that does not populate `meta.source`, a date-only `effectiveDateTime`, or a coded/component-only value — is **not** sent silently. It is left out of the bundle and reported in the start Task audit output as a rejected Observation, naming its id and the reason. The rest of the subject's Observations are still sent.
+
+If a subject's pseudonym itself does not match the register's subject-reference pattern (`^Patient/[\w\d-]{0,30}$`), the whole subject fails and is retried, since every one of its Observations would be rejected.
+
 ## Error Handling
 
-Subject-level failures are isolated. If one subject fails, the process logs and audits the error and continues with the next subject.
+Failures are classified by blast radius.
 
-The failed subject is not marked as successfully handled and is retried in a later cycle.
+**Subject-level failures are isolated.** If one subject fails — a rejected bundle (`400`/`E064`), an acknowledgement that could not be read, or a bundle-creation error — the process logs and audits the error and continues with the next subject. The failed subject is not marked as successfully handled and is retried in a later cycle.
+
+**A `2xx` response is not treated as success on its own.** The register answers `201` with an acknowledgement that may still report per-entry problems: an unknown PID (a *skippable* failure), a non-skippable failure, or entries its own schema rejected (`parseIssues`). Any of these leaves the subject unhandled and audited so it is re-sent next cycle, rather than counting as delivered. In particular an unknown PID is backfilled automatically once the pseudonym is provisioned in the register — the subject keeps being re-sent in the meantime.
+
+**Whole-cycle failures abort the remaining subjects for that cycle.** A register that is unreachable, times out, returns `5xx`, or rejects the site's `MEDIC-API-KEY` (`401`/`E060`–`E063`) fails identically for every subject. The cycle is aborted with a single audit entry, the watermark is not advanced, and the loop retries on the next interval. The process instance never terminates.
 
 Errors are appended to the start Task output with audit details such as pseudonym, timestamp and cause.
 
-The register API key and local patient identity must not be written to logs or Task output.
+The register API key and local patient identity must not be written to logs or Task output. The API key is only ever sent as a request header and never appears in an exception or audit entry; the local patient reference is redacted to `Patient/<pseudonym>` in audit output.
