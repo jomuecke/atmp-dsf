@@ -152,7 +152,7 @@ public class RegisterClient implements InitializingBean
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
 		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
 
-		this.httpClient = HttpClient.newBuilder()
+		this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
 				.connectTimeout(Objects.requireNonNull(connectTimeout, "connectTimeout")).build();
 	}
 

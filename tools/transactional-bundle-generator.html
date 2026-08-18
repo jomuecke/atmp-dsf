@@ -388,7 +388,7 @@
             </label>
             <label>
               Patient reference
-              <input id="patientReference" value="Patient/0000123456" autocomplete="off">
+              <input id="patientReference" value="Patient/patient-0000123456" autocomplete="off">
               <span class="hint">Use either Patient/&lt;id&gt; or just the patient id.</span>
             </label>
             <div class="field-grid two">
@@ -416,7 +416,7 @@
             </label>
             <label>
               CSV rows
-              <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,period_start&#10;atmp-subject-code-01,Patient/0000123456,code-01,on-study,2026-01-01"></textarea>
+              <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,period_start&#10;atmp-subject-code-01,Patient/patient-0000123456,code-01,on-study,2026-01-01"></textarea>
               <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, period_start.</span>
             </label>
           </div>
@@ -566,6 +566,11 @@
         "        <status value=\"" + status + "\"/>",
         "        <period>",
         "          <start value=\"" + periodStart + "\"/>",
+        "          <end>",
+        "            <extension url=\"http://hl7.org/fhir/StructureDefinition/data-absent-reason\">",
+        "              <valueCode value=\"unknown\"/>",
+        "            </extension>",
+        "          </end>",
         "        </period>",
         "        <study>",
         "          <reference value=\"ResearchStudy/atmp-study\"/>",
@@ -790,7 +795,7 @@
       els.includeStudy.checked = false;
       els.subjectId.value = "atmp-subject-code-01";
       els.pseudonym.value = "code-01";
-      els.patientReference.value = "Patient/0000123456";
+      els.patientReference.value = "Patient/patient-0000123456";
       els.defaultPeriodStart.value = "2026-01-01";
       els.status.value = "on-study";
       els.csvFile.value = "";
@@ -808,9 +813,9 @@
     els.sampleCsv.addEventListener("click", () => {
       els.csvText.value = [
         "subject_id,patient_reference,pseudonym,status,period_start",
-        "atmp-subject-code-01,Patient/0000123456,code-01,on-study,2026-01-01",
+        "atmp-subject-code-01,Patient/patient-0000123456,code-01,on-study,2026-01-01",
         "atmp-subject-code-02,0001234567,code-02,on-study,2026-01-01",
-        "atmp-subject-code-03,Patient/0012345678,code-03,withdrawn,2026-01-01"
+        "atmp-subject-code-03,Patient/patient-0012345678,code-03,withdrawn,2026-01-01"
       ].join("\n");
       render();
     });

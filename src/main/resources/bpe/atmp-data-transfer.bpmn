@@ -12,62 +12,71 @@
       <bpmn:incoming>Flow_start_to_rejectDuplicateStart</bpmn:incoming>
       <bpmn:outgoing>Flow_rejectDuplicateStart_to_duplicateStartGateway</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:exclusiveGateway id="Gateway_duplicateStart" name="duplicate start?" default="Flow_duplicateStartGateway_to_setTimer">
+    <bpmn:exclusiveGateway id="Gateway_duplicateStart" name="duplicate start?" default="Flow_duplicateStartGateway_to_transferLoop">
       <bpmn:incoming>Flow_rejectDuplicateStart_to_duplicateStartGateway</bpmn:incoming>
       <bpmn:outgoing>Flow_duplicateStartGateway_to_rejected</bpmn:outgoing>
-      <bpmn:outgoing>Flow_duplicateStartGateway_to_setTimer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_duplicateStartGateway_to_transferLoop</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:endEvent id="EndEvent_duplicateStartRejected" name="duplicate start rejected">
       <bpmn:incoming>Flow_duplicateStartGateway_to_rejected</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:serviceTask id="Activity_setTimer" name="set timer" camunda:class="de.ukhd.process.atmp.service.SetTimer">
-      <bpmn:incoming>Flow_duplicateStartGateway_to_setTimer</bpmn:incoming>
-      <bpmn:outgoing>Flow_setTimer_to_query</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="Activity_queryResearchSubjects" name="query research subjects" camunda:class="de.ukhd.process.atmp.service.QueryResearchSubjects">
-      <bpmn:incoming>Flow_setTimer_to_query</bpmn:incoming>
-      <bpmn:incoming>Flow_timer_to_query</bpmn:incoming>
-      <bpmn:outgoing>Flow_query_to_subprocess</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:subProcess id="Activity_perSubject" name="per research subject">
-      <bpmn:incoming>Flow_query_to_subprocess</bpmn:incoming>
-      <bpmn:outgoing>Flow_subprocess_to_timer</bpmn:outgoing>
-      <bpmn:multiInstanceLoopCharacteristics isSequential="true" camunda:collection="${atmpResearchSubjects}" camunda:elementVariable="atmpSubject" />
-      <bpmn:startEvent id="StartEvent_perSubject">
-        <bpmn:outgoing>Flow_substart_to_create</bpmn:outgoing>
+    <bpmn:subProcess id="Activity_transferLoop" name="periodic ATMP data transfer">
+      <bpmn:incoming>Flow_duplicateStartGateway_to_transferLoop</bpmn:incoming>
+      <bpmn:startEvent id="StartEvent_transferLoop">
+        <bpmn:outgoing>Flow_transferLoopStart_to_setTimer</bpmn:outgoing>
       </bpmn:startEvent>
-      <bpmn:serviceTask id="Activity_createSubjectBundle" name="create subject bundle" camunda:class="de.ukhd.process.atmp.service.CreateSubjectBundle">
-        <bpmn:incoming>Flow_substart_to_create</bpmn:incoming>
-        <bpmn:outgoing>Flow_create_to_send</bpmn:outgoing>
+      <bpmn:serviceTask id="Activity_setTimer" name="set timer" camunda:class="de.ukhd.process.atmp.service.SetTimer">
+        <bpmn:incoming>Flow_transferLoopStart_to_setTimer</bpmn:incoming>
+        <bpmn:outgoing>Flow_setTimer_to_query</bpmn:outgoing>
       </bpmn:serviceTask>
-      <bpmn:serviceTask id="Activity_sendToRegister" name="send to register" camunda:class="de.ukhd.process.atmp.service.SendToRegister">
-        <bpmn:incoming>Flow_create_to_send</bpmn:incoming>
-        <bpmn:outgoing>Flow_send_to_subend</bpmn:outgoing>
+      <bpmn:serviceTask id="Activity_queryResearchSubjects" name="query research subjects" camunda:class="de.ukhd.process.atmp.service.QueryResearchSubjects">
+        <bpmn:incoming>Flow_setTimer_to_query</bpmn:incoming>
+        <bpmn:incoming>Flow_timer_to_query</bpmn:incoming>
+        <bpmn:outgoing>Flow_query_to_subprocess</bpmn:outgoing>
       </bpmn:serviceTask>
-      <bpmn:endEvent id="EndEvent_perSubject">
-        <bpmn:incoming>Flow_send_to_subend</bpmn:incoming>
-      </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Flow_substart_to_create" sourceRef="StartEvent_perSubject" targetRef="Activity_createSubjectBundle" />
-      <bpmn:sequenceFlow id="Flow_create_to_send" sourceRef="Activity_createSubjectBundle" targetRef="Activity_sendToRegister" />
-      <bpmn:sequenceFlow id="Flow_send_to_subend" sourceRef="Activity_sendToRegister" targetRef="EndEvent_perSubject" />
+      <bpmn:subProcess id="Activity_perSubject" name="per research subject">
+        <bpmn:incoming>Flow_query_to_subprocess</bpmn:incoming>
+        <bpmn:outgoing>Flow_subprocess_to_timer</bpmn:outgoing>
+        <bpmn:multiInstanceLoopCharacteristics isSequential="true" camunda:collection="${atmpResearchSubjects}" camunda:elementVariable="atmpSubject" />
+        <bpmn:startEvent id="StartEvent_perSubject">
+          <bpmn:outgoing>Flow_substart_to_create</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:serviceTask id="Activity_createSubjectBundle" name="create subject bundle" camunda:class="de.ukhd.process.atmp.service.CreateSubjectBundle">
+          <bpmn:incoming>Flow_substart_to_create</bpmn:incoming>
+          <bpmn:outgoing>Flow_create_to_send</bpmn:outgoing>
+        </bpmn:serviceTask>
+        <bpmn:serviceTask id="Activity_sendToRegister" name="send to register" camunda:class="de.ukhd.process.atmp.service.SendToRegister">
+          <bpmn:incoming>Flow_create_to_send</bpmn:incoming>
+          <bpmn:outgoing>Flow_send_to_subend</bpmn:outgoing>
+        </bpmn:serviceTask>
+        <bpmn:endEvent id="EndEvent_perSubject">
+          <bpmn:incoming>Flow_send_to_subend</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="Flow_substart_to_create" sourceRef="StartEvent_perSubject" targetRef="Activity_createSubjectBundle" />
+        <bpmn:sequenceFlow id="Flow_create_to_send" sourceRef="Activity_createSubjectBundle" targetRef="Activity_sendToRegister" />
+        <bpmn:sequenceFlow id="Flow_send_to_subend" sourceRef="Activity_sendToRegister" targetRef="EndEvent_perSubject" />
+      </bpmn:subProcess>
+      <bpmn:intermediateCatchEvent id="Event_timerInterval" name="wait">
+        <bpmn:incoming>Flow_subprocess_to_timer</bpmn:incoming>
+        <bpmn:outgoing>Flow_timer_to_query</bpmn:outgoing>
+        <bpmn:timerEventDefinition id="TimerEventDefinition_timerInterval">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">${atmpTimerInterval}</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:intermediateCatchEvent>
+      <bpmn:sequenceFlow id="Flow_transferLoopStart_to_setTimer" sourceRef="StartEvent_transferLoop" targetRef="Activity_setTimer" />
+      <bpmn:sequenceFlow id="Flow_setTimer_to_query" sourceRef="Activity_setTimer" targetRef="Activity_queryResearchSubjects" />
+      <bpmn:sequenceFlow id="Flow_query_to_subprocess" sourceRef="Activity_queryResearchSubjects" targetRef="Activity_perSubject" />
+      <bpmn:sequenceFlow id="Flow_subprocess_to_timer" sourceRef="Activity_perSubject" targetRef="Event_timerInterval" />
+      <bpmn:sequenceFlow id="Flow_timer_to_query" sourceRef="Event_timerInterval" targetRef="Activity_queryResearchSubjects" />
     </bpmn:subProcess>
-    <bpmn:intermediateCatchEvent id="Event_timerInterval" name="wait">
-      <bpmn:incoming>Flow_subprocess_to_timer</bpmn:incoming>
-      <bpmn:outgoing>Flow_timer_to_query</bpmn:outgoing>
-      <bpmn:timerEventDefinition id="TimerEventDefinition_timerInterval">
-        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">${atmpTimerInterval}</bpmn:timeDuration>
-      </bpmn:timerEventDefinition>
-    </bpmn:intermediateCatchEvent>
-    <bpmn:subProcess id="EventSubProcess_stop" name="stop ATMP data transfer" triggeredByEvent="true">
-      <bpmn:startEvent id="StartEvent_stopSignal" name="stop signal received" isInterrupting="true">
-        <bpmn:outgoing>Flow_stop_to_stopped</bpmn:outgoing>
-        <bpmn:signalEventDefinition id="SignalEventDefinition_stopCatch" signalRef="Signal_atmpDataTransferStop" />
-      </bpmn:startEvent>
-      <bpmn:endEvent id="EndEvent_atmpDataTransferStopped" name="stopped">
-        <bpmn:incoming>Flow_stop_to_stopped</bpmn:incoming>
-      </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Flow_stop_to_stopped" sourceRef="StartEvent_stopSignal" targetRef="EndEvent_atmpDataTransferStopped" />
-    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="BoundaryEvent_stopSignal" name="stop signal received" attachedToRef="Activity_transferLoop" cancelActivity="true">
+      <bpmn:outgoing>Flow_stop_to_stopped</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_stopCatch" signalRef="Signal_atmpDataTransferStop" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="EndEvent_atmpDataTransferStopped" name="stopped">
+      <bpmn:incoming>Flow_stop_to_stopped</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_stop_to_stopped" sourceRef="BoundaryEvent_stopSignal" targetRef="EndEvent_atmpDataTransferStopped" />
     <bpmn:startEvent id="StartEvent_atmpDataTransferStop" name="stop ATMP data transfer">
       <bpmn:outgoing>Flow_stopStart_to_stopSignalThrow</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MessageEventDefinition_atmpDataTransferStop" messageRef="Message_atmpDataTransferStop" />
@@ -82,11 +91,7 @@
     <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_rejected" sourceRef="Gateway_duplicateStart" targetRef="EndEvent_duplicateStartRejected">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${atmpDuplicateStart}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_setTimer" sourceRef="Gateway_duplicateStart" targetRef="Activity_setTimer" />
-    <bpmn:sequenceFlow id="Flow_setTimer_to_query" sourceRef="Activity_setTimer" targetRef="Activity_queryResearchSubjects" />
-    <bpmn:sequenceFlow id="Flow_query_to_subprocess" sourceRef="Activity_queryResearchSubjects" targetRef="Activity_perSubject" />
-    <bpmn:sequenceFlow id="Flow_subprocess_to_timer" sourceRef="Activity_perSubject" targetRef="Event_timerInterval" />
-    <bpmn:sequenceFlow id="Flow_timer_to_query" sourceRef="Event_timerInterval" targetRef="Activity_queryResearchSubjects" />
+    <bpmn:sequenceFlow id="Flow_duplicateStartGateway_to_transferLoop" sourceRef="Gateway_duplicateStart" targetRef="Activity_transferLoop" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ukhdde_atmpDataTransfer">
@@ -102,11 +107,17 @@
       <bpmndi:BPMNShape id="BPMNShape_duplicateStartRejected" bpmnElement="EndEvent_duplicateStartRejected">
         <dc:Bounds x="372" y="282" width="36" height="36" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_transferLoop" bpmnElement="Activity_transferLoop" isExpanded="true">
+        <dc:Bounds x="440" y="60" width="1000" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_transferLoopStart" bpmnElement="StartEvent_transferLoop">
+        <dc:Bounds x="470" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_setTimer" bpmnElement="Activity_setTimer">
-        <dc:Bounds x="470" y="160" width="100" height="80" />
+        <dc:Bounds x="530" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_query" bpmnElement="Activity_queryResearchSubjects">
-        <dc:Bounds x="620" y="160" width="100" height="80" />
+        <dc:Bounds x="650" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_subprocess" bpmnElement="Activity_perSubject" isExpanded="true">
         <dc:Bounds x="780" y="80" width="520" height="240" />
@@ -138,14 +149,11 @@
       <bpmndi:BPMNShape id="BPMNShape_timer" bpmnElement="Event_timerInterval">
         <dc:Bounds x="1362" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_stopSubProcess" bpmnElement="EventSubProcess_stop" isExpanded="true">
-        <dc:Bounds x="240" y="360" width="300" height="140" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_stopSignalStart" bpmnElement="StartEvent_stopSignal">
-        <dc:Bounds x="280" y="412" width="36" height="36" />
+      <bpmndi:BPMNShape id="BPMNShape_stopBoundary" bpmnElement="BoundaryEvent_stopSignal">
+        <dc:Bounds x="1422" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_stopped" bpmnElement="EndEvent_atmpDataTransferStopped">
-        <dc:Bounds x="452" y="412" width="36" height="36" />
+        <dc:Bounds x="1500" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_stopMessageStart" bpmnElement="StartEvent_atmpDataTransferStop">
         <dc:Bounds x="152" y="562" width="36" height="36" />
@@ -154,8 +162,8 @@
         <dc:Bounds x="292" y="562" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="BPMNEdge_stop_stopped" bpmnElement="Flow_stop_to_stopped">
-        <di:waypoint x="316" y="430" />
-        <di:waypoint x="452" y="430" />
+        <di:waypoint x="1458" y="200" />
+        <di:waypoint x="1500" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_stopStart_stopSignalThrow" bpmnElement="Flow_stopStart_to_stopSignalThrow">
         <di:waypoint x="188" y="580" />
@@ -173,16 +181,20 @@
         <di:waypoint x="390" y="225" />
         <di:waypoint x="390" y="282" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="BPMNEdge_duplicateStartGateway_setTimer" bpmnElement="Flow_duplicateStartGateway_to_setTimer">
+      <bpmndi:BPMNEdge id="BPMNEdge_duplicateStartGateway_transferLoop" bpmnElement="Flow_duplicateStartGateway_to_transferLoop">
         <di:waypoint x="415" y="200" />
-        <di:waypoint x="470" y="200" />
+        <di:waypoint x="440" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_transferLoopStart_setTimer" bpmnElement="Flow_transferLoopStart_to_setTimer">
+        <di:waypoint x="506" y="200" />
+        <di:waypoint x="530" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_setTimer_query" bpmnElement="Flow_setTimer_to_query">
-        <di:waypoint x="570" y="200" />
-        <di:waypoint x="620" y="200" />
+        <di:waypoint x="630" y="200" />
+        <di:waypoint x="650" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_query_subprocess" bpmnElement="Flow_query_to_subprocess">
-        <di:waypoint x="720" y="200" />
+        <di:waypoint x="750" y="200" />
         <di:waypoint x="780" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="BPMNEdge_subprocess_timer" bpmnElement="Flow_subprocess_to_timer">
@@ -192,8 +204,8 @@
       <bpmndi:BPMNEdge id="BPMNEdge_timer_query" bpmnElement="Flow_timer_to_query">
         <di:waypoint x="1380" y="182" />
         <di:waypoint x="1380" y="40" />
-        <di:waypoint x="670" y="40" />
-        <di:waypoint x="670" y="160" />
+        <di:waypoint x="700" y="40" />
+        <di:waypoint x="700" y="160" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

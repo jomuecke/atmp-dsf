@@ -2,15 +2,23 @@ package de.ukhd.process.atmp.audit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.StringType;
 import org.hl7.fhir.r4.model.Task;
 import org.junit.Test;
+
+import dev.dsf.bpe.v2.ProcessPluginApi;
+import dev.dsf.bpe.v2.client.dsf.DsfClient;
+import dev.dsf.bpe.v2.service.DsfClientProvider;
+import dev.dsf.bpe.v2.variables.Variables;
 
 public class AuditLogTest
 {
@@ -125,5 +133,66 @@ public class AuditLogTest
 
 		assertEquals(AuditLog.MAX_ERROR_OUTPUTS + 1, task.getOutput().size());
 		assertEquals("keep me", ((StringType) task.getOutput().get(0).getValue()).getValue());
+	}
+
+	@Test
+	public void testAppendErrorPersistsToDsfFhirServerAndRefreshesProcessVariable()
+	{
+		Task startTask = new Task();
+		startTask.setId("Task/start-1");
+		startTask.getMeta().setVersionId("1");
+
+		AtomicReference<Task> processVariable = new AtomicReference<>(startTask);
+		AtomicReference<Task> persisted = new AtomicReference<>();
+
+		DsfClient client = (DsfClient) Proxy.newProxyInstance(DsfClient.class.getClassLoader(),
+				new Class<?>[] { DsfClient.class }, (proxy, method, args) ->
+				{
+					if ("update".equals(method.getName()))
+					{
+						Task updated = (Task) ((Task) args[0]).copy();
+						updated.getMeta().setVersionId("2");
+						persisted.set(updated);
+						return updated;
+					}
+
+					throw new UnsupportedOperationException(method.getName());
+				});
+
+		DsfClientProvider provider = (DsfClientProvider) Proxy.newProxyInstance(
+				DsfClientProvider.class.getClassLoader(), new Class<?>[] { DsfClientProvider.class },
+				(proxy, method, args) -> switch (method.getName())
+				{
+					case "getLocal" -> client;
+					default -> throw new UnsupportedOperationException(method.getName());
+				});
+
+		ProcessPluginApi api = (ProcessPluginApi) Proxy.newProxyInstance(ProcessPluginApi.class.getClassLoader(),
+				new Class<?>[] { ProcessPluginApi.class }, (proxy, method, args) -> switch (method.getName())
+				{
+					case "getDsfClientProvider" -> provider;
+					default -> throw new UnsupportedOperationException(method.getName());
+				});
+
+		Variables variables = (Variables) Proxy.newProxyInstance(Variables.class.getClassLoader(),
+				new Class<?>[] { Variables.class }, (proxy, method, args) ->
+				{
+					if ("getStartTask".equals(method.getName()))
+						return processVariable.get();
+					if ("updateTask".equals(method.getName()))
+					{
+						processVariable.set((Task) args[0]);
+						return null;
+					}
+
+					throw new UnsupportedOperationException(method.getName());
+				});
+
+		AuditLog.appendError(api, variables, "persist me");
+
+		assertNotNull("audit output must be written to the DSF FHIR server", persisted.get());
+		assertEquals("persist me", ((StringType) persisted.get().getOutputFirstRep().getValue()).getValue());
+		assertEquals("server-returned Task must refresh the Camunda variable", "2",
+				processVariable.get().getMeta().getVersionId());
 	}
 }

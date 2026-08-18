@@ -24,10 +24,10 @@
     </request>
   </entry>
   <entry>
-    <fullUrl value="Patient/0000123456"/>
+    <fullUrl value="Patient/patient-0000123456"/>
     <resource>
       <Patient>
-        <id value="0000123456"/>
+        <id value="patient-0000123456"/>
         <identifier>
           <system value="https://ukhd.de/fhir/sid/ish-pid"/>
           <value value="0000123456"/>
@@ -36,14 +36,14 @@
     </resource>
     <request>
       <method value="PUT"/>
-      <url value="Patient/0000123456"/>
+      <url value="Patient/patient-0000123456"/>
     </request>
   </entry>
   <entry>
-    <fullUrl value="Patient/0001234567"/>
+    <fullUrl value="Patient/patient-0001234567"/>
     <resource>
       <Patient>
-        <id value="0001234567"/>
+        <id value="patient-0001234567"/>
         <identifier>
           <system value="https://ukhd.de/fhir/sid/ish-pid"/>
           <value value="0001234567"/>
@@ -52,14 +52,14 @@
     </resource>
     <request>
       <method value="PUT"/>
-      <url value="Patient/0001234567"/>
+      <url value="Patient/patient-0001234567"/>
     </request>
   </entry>
   <entry>
-    <fullUrl value="Patient/0012345678"/>
+    <fullUrl value="Patient/patient-0012345678"/>
     <resource>
       <Patient>
-        <id value="0012345678"/>
+        <id value="patient-0012345678"/>
         <identifier>
           <system value="https://ukhd.de/fhir/sid/ish-pid"/>
           <value value="0012345678"/>
@@ -68,7 +68,7 @@
     </resource>
     <request>
       <method value="PUT"/>
-      <url value="Patient/0012345678"/>
+      <url value="Patient/patient-0012345678"/>
     </request>
   </entry>
   <entry>
@@ -92,12 +92,17 @@
         <status value="on-study"/>
         <period>
           <start value="2025-01-01"/>
+          <end>
+            <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+              <valueCode value="unknown"/>
+            </extension>
+          </end>
         </period>
         <study>
           <reference value="ResearchStudy/atmp-study"/>
         </study>
         <individual>
-          <reference value="Patient/0000123456"/>
+          <reference value="Patient/patient-0000123456"/>
         </individual>
         <consent>
           <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
@@ -132,12 +137,17 @@
         <status value="on-study"/>
         <period>
           <start value="2024-05-15"/>
+          <end>
+            <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+              <valueCode value="unknown"/>
+            </extension>
+          </end>
         </period>
         <study>
           <reference value="ResearchStudy/atmp-study"/>
         </study>
         <individual>
-          <reference value="Patient/0001234567"/>
+          <reference value="Patient/patient-0001234567"/>
         </individual>
         <consent>
           <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
@@ -172,12 +182,17 @@
         <status value="on-study"/>
         <period>
           <start value="2022-12-12"/>
+          <end>
+            <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+              <valueCode value="unknown"/>
+            </extension>
+          </end>
         </period>
         <study>
           <reference value="ResearchStudy/atmp-study"/>
         </study>
         <individual>
-          <reference value="Patient/0012345678"/>
+          <reference value="Patient/patient-0012345678"/>
         </individual>
         <consent>
           <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
@@ -236,7 +251,7 @@
           </coding>
         </code>
         <subject>
-          <reference value="Patient/0000123456"/>
+          <reference value="Patient/patient-0000123456"/>
         </subject>
         <effectiveDateTime value="2025-07-01T12:40:00+01:00"/>
         <valueQuantity>
@@ -297,7 +312,7 @@
           </coding>
         </code>
         <subject>
-          <reference value="Patient/0001234567"/>
+          <reference value="Patient/patient-0001234567"/>
         </subject>
         <effectiveDateTime value="2025-08-02T17:49:00+01:00"/>
         <valueQuantity>
@@ -358,7 +373,7 @@
           </coding>
         </code>
         <subject>
-          <reference value="Patient/0001234567"/>
+          <reference value="Patient/patient-0001234567"/>
         </subject>
         <effectiveDateTime value="2025-09-03T13:40:00+01:00"/>
         <valueQuantity>

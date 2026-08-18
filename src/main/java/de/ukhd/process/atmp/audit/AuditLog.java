@@ -107,7 +107,12 @@ public final class AuditLog
 
 		Task startTask = variables.getStartTask();
 		appendErrorOutput(startTask, message);
-		variables.updateTask(startTask);
+
+		// Variables.updateTask only refreshes Camunda's serialized Task variable; it does not persist to the DSF FHIR
+		// server. Persist first and keep the returned resource version in the process variable so the next audit append
+		// does not overwrite from a stale Task version.
+		Task updated = api.getDsfClientProvider().getLocal().update(startTask);
+		variables.updateTask(updated);
 	}
 
 	/**

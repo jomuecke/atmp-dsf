@@ -16,6 +16,8 @@ import org.junit.Test;
 import de.ukhd.process.atmp.ConstantsAtmp;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import dev.dsf.bpe.v2.ProcessPluginApi;
+import dev.dsf.bpe.v2.client.dsf.DsfClient;
+import dev.dsf.bpe.v2.service.DsfClientProvider;
 import dev.dsf.bpe.v2.service.FhirClientProvider;
 import dev.dsf.bpe.v2.variables.Variables;
 
@@ -88,6 +90,24 @@ public class CreateSubjectBundleTest
 				new Class<?>[] { ProcessPluginApi.class }, (proxy, method, args) -> switch (method.getName())
 				{
 					case "getFhirClientProvider" -> clientProvider;
+					case "getDsfClientProvider" -> dsfClientProvider();
+					default -> throw new UnsupportedOperationException(method.getName());
+				});
+	}
+
+	private DsfClientProvider dsfClientProvider()
+	{
+		DsfClient client = (DsfClient) Proxy.newProxyInstance(DsfClient.class.getClassLoader(),
+				new Class<?>[] { DsfClient.class }, (proxy, method, args) -> switch (method.getName())
+				{
+					case "update" -> args[0];
+					default -> throw new UnsupportedOperationException(method.getName());
+				});
+
+		return (DsfClientProvider) Proxy.newProxyInstance(DsfClientProvider.class.getClassLoader(),
+				new Class<?>[] { DsfClientProvider.class }, (proxy, method, args) -> switch (method.getName())
+				{
+					case "getLocal" -> client;
 					default -> throw new UnsupportedOperationException(method.getName());
 				});
 	}

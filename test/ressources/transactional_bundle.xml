@@ -3,8 +3,9 @@
   <type value="transaction"/>
 
   <!-- ATMP project decision: ResearchSubject uses a fixed fallback -->
-  <!-- participation start date and marks missing consent data as   -->
-  <!-- unknown via the FHIR data-absent-reason extension.           -->
+  <!-- participation start date and marks missing period end and    -->
+  <!-- consent data as unknown via the FHIR data-absent-reason      -->
+  <!-- extension.                                                   -->
 
   <!-- 1) ResearchStudy  -->
   <entry>
@@ -56,6 +57,11 @@
         <status value="REPLACE_WITH_RESEARCHSUBJECT_STATUS"/>    
         <period>
           <start value="2026-01-01"/>
+          <end>
+            <extension url="http://hl7.org/fhir/StructureDefinition/data-absent-reason">
+              <valueCode value="unknown"/>
+            </extension>
+          </end>
         </period>
         <study>
           <reference value="ResearchStudy/atmp-study"/>
