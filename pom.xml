@@ -6,7 +6,7 @@
 
 	<groupId>de.ukhd</groupId>
 	<artifactId>atmp-dsf</artifactId>
-	<version>1.0.0.0-SNAPSHOT</version>
+	<version>1.0.0.0</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -22,12 +22,12 @@
 
 	<name>atmp-dsf</name>
 	<description>DSF process plugin: periodically collects ATMP-study laboratory Observations from the local FHIR store and sends them pseudonymized to the external ATMP register (integrate-ATMP) REST API</description>
-	<url>https://github.com/ukhd/atmp-dsf</url>
+	<url>https://github.com/jomuecke/atmp-dsf</url>
 
 	<scm>
-		<connection>scm:git:git://github.com/ukhd/atmp-dsf.git</connection>
-		<developerConnection>scm:git:git@github.com/ukhd/atmp-dsf.git</developerConnection>
-		<url>https://github.com/ukhd/atmp-dsf</url>
+		<connection>scm:git:git://github.com/jomuecke/atmp-dsf.git</connection>
+		<developerConnection>scm:git:git@github.com/jomuecke/atmp-dsf.git</developerConnection>
+		<url>https://github.com/jomuecke/atmp-dsf</url>
 	</scm>
 
 	<licenses>
@@ -214,20 +214,6 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<distributionManagement>
-		<!-- for deployment to GitHub Packages the id must be 'github',
-		if not the deployment fails with a 401 error;
-		repository also used for snapshots if no snapshotRepository defined -->
-		<repository>
-			<id>github</id>
-			<name>GitHub Packages</name>
-			<url>https://maven.pkg.github.com/ukhd/atmp-dsf</url>
-		</repository>
-		<site>
-			<id>${project.artifactId}-site</id>
-		</site>
-	</distributionManagement>
 
 	<repositories>
 		<!-- required to resolve dsf-* and mii-processes-common artifacts -->
