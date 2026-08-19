@@ -1,0 +1,97 @@
+name: Release candidate
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*.*'
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MAVEN_USERNAME: ${{ vars.MII_PACKAGES_USERNAME }}
+      MAVEN_TOKEN: ${{ secrets.MII_PACKAGES_READ_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: github-mii
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_TOKEN
+
+      - name: Check dependency credentials
+        shell: bash
+        run: |
+          test -n "${MAVEN_USERNAME:-}"
+          test -n "${MAVEN_TOKEN:-}"
+
+      - name: Prove release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          plugin_version="$(sed -n 's/.*VERSION = "\([^"]*\)".*/\1/p' \
+            src/main/java/de/ukhd/process/atmp/AtmpProcessPluginDefinition.java)"
+
+          test -n "$version"
+          test "$version" = "$plugin_version"
+          case "$version" in
+            *-SNAPSHOT) echo 'Refusing a snapshot release' >&2; exit 1 ;;
+          esac
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            test "${GITHUB_REF_NAME#v}" = "$version"
+          else
+            test "$GITHUB_REF_NAME" = "main"
+          fi
+
+      - name: Build and test
+        run: mvn --batch-mode --no-transfer-progress --fail-at-end clean verify
+
+      - name: Stage candidate assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          jar="target/atmp-dsf-${version}.jar"
+          test -f "$jar"
+          jar tf "$jar" | grep -Fxq 'META-INF/LICENSE'
+          mkdir dist
+          cp "$jar" dist/
+          cd dist
+          sha256sum "atmp-dsf-${version}.jar" > SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Create draft GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --draft \
+            --title "ATMP DSF ${GITHUB_REF_NAME#v}"
