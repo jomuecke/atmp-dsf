@@ -41,4 +41,8 @@ jobs:
           test -n "${MAVEN_TOKEN:-}"
 
       - name: Verify
-        run: mvn --batch-mode --no-transfer-progress --fail-at-end clean verify
+        run: |
+          mvn --batch-mode --no-transfer-progress --fail-at-end \
+            -DbuildNumber="$GITHUB_SHA" \
+            -DscmBranch="$GITHUB_REF_NAME" \
+            clean verify

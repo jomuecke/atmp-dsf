@@ -62,7 +62,11 @@ jobs:
           fi
 
       - name: Build and test
-        run: mvn --batch-mode --no-transfer-progress --fail-at-end clean verify
+        run: |
+          mvn --batch-mode --no-transfer-progress --fail-at-end \
+            -DbuildNumber="$GITHUB_SHA" \
+            -DscmBranch="$GITHUB_REF_NAME" \
+            clean verify
 
       - name: Stage candidate assets
         shell: bash
@@ -72,6 +76,10 @@ jobs:
           jar="target/atmp-dsf-${version}.jar"
           test -f "$jar"
           jar tf "$jar" | grep -Fxq 'META-INF/LICENSE'
+          manifest="$(unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r')"
+          grep -Fxq "Implementation-Version: $version" <<< "$manifest"
+          grep -Fxq "Implementation-Build: $GITHUB_SHA" <<< "$manifest"
+          grep -Fxq "Implementation-Branch: $GITHUB_REF_NAME" <<< "$manifest"
           mkdir dist
           cp "$jar" dist/
           cd dist
