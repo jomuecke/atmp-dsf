@@ -1,0 +1,38 @@
+<Task xmlns="http://hl7.org/fhir">
+	<meta>
+		<profile value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-stop|#{version}"/>
+	</meta>
+	<identifier>
+		<system value="http://dsf.dev/sid/task-identifier"/>
+		<value value="http://ukhd.de/bpe/Process/atmpDataTransfer/#{version}/atmpDataTransferStop"/>
+	</identifier>
+	<instantiatesCanonical value="http://ukhd.de/bpe/Process/atmpDataTransfer|#{version}" />
+	<status value="draft"/>
+	<intent value="order"/>
+	<authoredOn value="#{date}"/>
+	<requester>
+		<type value="Organization"/>
+		<identifier>
+			<system value="http://dsf.dev/sid/organization-identifier"/>
+			<value value="#{organization}"/>
+		</identifier>
+	</requester>
+	<restriction>
+		<recipient>
+			<type value="Organization"/>
+			<identifier>
+				<system value="http://dsf.dev/sid/organization-identifier"/>
+				<value value="#{organization}"/>
+			</identifier>
+		</recipient>
+	</restriction>
+	<input>
+		<type>
+			<coding>
+				<system value="http://dsf.dev/fhir/CodeSystem/bpmn-message"/>
+				<code value="message-name"/>
+			</coding>
+		</type>
+		<valueString value="atmpDataTransferStop"/>
+	</input>
+</Task>

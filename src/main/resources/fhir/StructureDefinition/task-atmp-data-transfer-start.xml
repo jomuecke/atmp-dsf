@@ -1,0 +1,101 @@
+<StructureDefinition xmlns="http://hl7.org/fhir">
+	<meta>
+		<profile value="http://dsf.dev/fhir/StructureDefinition/structure-definition" />
+		<tag>
+			<system value="http://dsf.dev/fhir/CodeSystem/read-access-tag" />
+			<code value="ALL" />
+		</tag>
+	</meta>
+	<url value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-start" />
+	<!-- version managed by bpe -->
+	<version value="#{version}" />
+	<name value="TaskAtmpDataTransferStart" />
+	<!-- status managed by bpe -->
+	<status value="unknown" />
+	<experimental value="false" />
+	<!-- date managed by bpe -->
+	<date value="#{date}" />
+	<fhirVersion value="4.0.1" />
+	<kind value="resource" />
+	<abstract value="false" />
+	<type value="Task" />
+	<baseDefinition value="http://dsf.dev/fhir/StructureDefinition/task" />
+	<derivation value="constraint" />
+	<differential>
+		<element id="Task.instantiatesCanonical">
+			<path value="Task.instantiatesCanonical" />
+			<fixedCanonical value="http://ukhd.de/bpe/Process/atmpDataTransfer|#{version}" />
+		</element>
+		<element id="Task.input">
+			<path value="Task.input" />
+			<min value="1" />
+			<max value="3" />
+		</element>
+		<element id="Task.input:message-name">
+			<path value="Task.input" />
+			<sliceName value="message-name" />
+		</element>
+		<element id="Task.input:message-name.value[x]">
+			<path value="Task.input.value[x]" />
+			<fixedString value="atmpDataTransferStart" />
+		</element>
+		<element id="Task.input:business-key">
+			<path value="Task.input" />
+			<sliceName value="business-key" />
+			<min value="0" />
+		</element>
+		<element id="Task.input:correlation-key">
+			<path value="Task.input" />
+			<sliceName value="correlation-key" />
+			<max value="0" />
+		</element>
+		<element id="Task.input:timer-interval">
+			<path value="Task.input" />
+			<sliceName value="timer-interval" />
+			<min value="0" />
+			<max value="1" />
+		</element>
+		<element id="Task.input:timer-interval.type">
+			<path value="Task.input.type" />
+			<binding>
+				<strength value="required" />
+				<valueSet value="http://ukhd.de/fhir/ValueSet/atmp-data-transfer|#{version}" />
+			</binding>
+		</element>
+		<element id="Task.input:timer-interval.type.coding">
+			<path value="Task.input.type.coding" />
+			<min value="1" />
+			<max value="1" />
+		</element>
+		<element id="Task.input:timer-interval.type.coding.system">
+			<path value="Task.input.type.coding.system" />
+			<min value="1" />
+			<fixedUri value="http://ukhd.de/fhir/CodeSystem/atmp-data-transfer" />
+		</element>
+		<element id="Task.input:timer-interval.type.coding.version">
+			<path value="Task.input.type.coding.version" />
+			<min value="1" />
+			<fixedString value="#{version}" />
+		</element>
+		<element id="Task.input:timer-interval.type.coding.code">
+			<path value="Task.input.type.coding.code" />
+			<min value="1" />
+			<fixedCode value="timer-interval" />
+		</element>
+		<element id="Task.input:timer-interval.value[x]">
+			<path value="Task.input.value[x]" />
+			<type>
+				<code value="string" />
+			</type>
+			<constraint>
+				<key value="timer-interval-regex" />
+				<severity value="error" />
+				<human value="Must be ISO 8601 time duration pattern" />
+				<!-- Mirrors what java.time.Duration.parse accepts (days/hours/minutes/seconds, no years/months) and
+				     requires at least one component, so bare "P"/"PT" and calendar units are rejected here instead of
+				     failing later in the SetTimer service -->
+				<expression value="matches(&#39;^P(?=.)(?:[0-9]+D)?(?:T(?=.)(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:[.,][0-9]{1,9})?S)?)?$&#39;)" />
+			</constraint>
+		</element>
+	</differential>
+</StructureDefinition>

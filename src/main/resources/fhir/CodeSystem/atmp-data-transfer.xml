@@ -1,0 +1,35 @@
+<CodeSystem xmlns="http://hl7.org/fhir">
+	<meta>
+		<profile value="http://dsf.dev/fhir/StructureDefinition/code-system" />
+		<tag>
+			<system value="http://dsf.dev/fhir/CodeSystem/read-access-tag" />
+			<code value="ALL" />
+		</tag>
+	</meta>
+	<url value="http://ukhd.de/fhir/CodeSystem/atmp-data-transfer" />
+	<!-- version managed by bpe -->
+	<version value="#{version}" />
+	<name value="UKHD_ATMP_Data_Transfer" />
+	<title value="UKHD ATMP Data Transfer" />
+	<!-- status managed by bpe -->
+	<status value="unknown" />
+	<experimental value="false" />
+	<!-- date managed by bpe -->
+	<date value="#{date}" />
+	<publisher value="UKHD" />
+	<description value="CodeSystem with standard values for the ATMP data transfer process" />
+	<caseSensitive value="true" />
+	<hierarchyMeaning value="grouped-by" />
+	<versionNeeded value="false" />
+	<content value="complete" />
+	<concept>
+		<code value="timer-interval" />
+		<display value="Timer Interval" />
+		<definition value="Interval between two cycles of the ATMP data transfer process" />
+	</concept>
+	<concept>
+		<code value="error" />
+		<display value="Error" />
+		<definition value="Error message describing a failed transfer for a study participant" />
+	</concept>
+</CodeSystem>

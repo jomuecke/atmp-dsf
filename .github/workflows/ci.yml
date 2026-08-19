@@ -42,5 +42,3 @@ jobs:
 
       - name: Verify
         run: mvn --batch-mode --no-transfer-progress --fail-at-end clean verify
-      - name: Verify
-        run: mvn --batch-mode --no-transfer-progress --fail-at-end clean verify

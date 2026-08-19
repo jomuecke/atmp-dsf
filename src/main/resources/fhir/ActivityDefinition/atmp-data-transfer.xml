@@ -1,0 +1,178 @@
+<ActivityDefinition xmlns="http://hl7.org/fhir">
+	<meta>
+		<profile value="http://dsf.dev/fhir/StructureDefinition/activity-definition" />
+		<tag>
+			<system value="http://dsf.dev/fhir/CodeSystem/read-access-tag" />
+			<code value="ALL" />
+		</tag>
+	</meta>
+	<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization">
+		<extension url="message-name">
+			<valueString value="atmpDataTransferStart" />
+		</extension>
+		<extension url="task-profile">
+			<valueCanonical value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-start|#{version}" />
+		</extension>
+		<extension url="requester">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE" />
+			</valueCoding>
+		</extension>
+		<extension url="requester">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role-practitioner">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+					<extension url="practitioner-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/practitioner-role" />
+							<code value="DSF_ADMIN" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE_PRACTITIONER" />
+			</valueCoding>
+		</extension>
+		<extension url="recipient">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE" />
+			</valueCoding>
+		</extension>
+	</extension>
+	<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization">
+		<extension url="message-name">
+			<valueString value="atmpDataTransferStop" />
+		</extension>
+		<extension url="task-profile">
+			<valueCanonical value="http://ukhd.de/fhir/StructureDefinition/task-atmp-data-transfer-stop|#{version}" />
+		</extension>
+		<extension url="requester">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE" />
+			</valueCoding>
+		</extension>
+		<extension url="requester">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role-practitioner">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+					<extension url="practitioner-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/practitioner-role" />
+							<code value="DSF_ADMIN" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE_PRACTITIONER" />
+			</valueCoding>
+		</extension>
+		<extension url="recipient">
+			<valueCoding>
+				<extension url="http://dsf.dev/fhir/StructureDefinition/extension-process-authorization-parent-organization-role">
+					<extension url="parent-organization">
+						<valueIdentifier>
+							<system value="http://dsf.dev/sid/organization-identifier" />
+							<value value="medizininformatik-initiative.de" />
+						</valueIdentifier>
+					</extension>
+					<extension url="organization-role">
+						<valueCoding>
+							<system value="http://dsf.dev/fhir/CodeSystem/organization-role" />
+							<code value="DIC" />
+						</valueCoding>
+					</extension>
+				</extension>
+				<system value="http://dsf.dev/fhir/CodeSystem/process-authorization" />
+				<code value="LOCAL_ROLE" />
+			</valueCoding>
+		</extension>
+	</extension>
+	<url value="http://ukhd.de/bpe/Process/atmpDataTransfer" />
+	<!-- version managed by bpe -->
+	<version value="#{version}" />
+	<name value="ATMP Data Transfer" />
+	<title value="ATMP data transfer process" />
+	<subtitle value="Sends pseudonymized ATMP-study laboratory Observations to the ATMP register REST API" />
+	<!-- status managed by bpe -->
+	<status value="unknown" />
+	<experimental value="false" />
+	<!-- date managed by bpe -->
+	<date value="#{date}" />
+	<publisher value="UKHD" />
+	<contact>
+		<name value="UKHD" />
+		<telecom>
+			<system value="email" />
+			<value value="info@ukhd.de" />
+		</telecom>
+	</contact>
+	<description value="Process to collect the ATMP-study participants' laboratory Observations from the local FHIR store and send them pseudonymized to the external ATMP register (integrate-ATMP) REST API" />
+	<kind value="Task" />
+</ActivityDefinition>

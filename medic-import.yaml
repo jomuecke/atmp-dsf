@@ -1,0 +1,350 @@
+openapi: 3.0.3
+info:
+  title: Medic Import API
+  version: '1.0.0'
+  description: |
+    Ingests lab Observation resources (FHIR, MII "ObservationLab" profile) pushed
+    by hospital KIS/BHZ systems into Integrate.
+
+    This is a plain REST push, independent of any DSF (Data Sharing Framework)
+    process orchestration - callers just need to send an authenticated HTTP
+    request per the shapes below.
+
+    Hand-written from the server-side implementation (Zod schemas in
+    `@integrate/common`'s `medic` DTOs and `MedicImportController`/
+    `MedicImportService`), since no formal spec previously existed beyond a
+    Postman collection. Keep in sync with that source when either changes.
+servers:
+  - url: https://app.integrate-atmp.de/api
+    description: Production
+  - url: https://staging.app.integrate-atmp.de/api
+    description: Staging
+security:
+  - MedicApiKey: []
+paths:
+  /medic-import:
+    post:
+      operationId: importMedicBundle
+      summary: Import a bundle of lab Observations
+      description: |
+        Accepts a FHIR Bundle. Each `entry[].resource` is validated against
+        the Observation shape below (status, code, subject, effectiveDateTime,
+        valueQuantity, meta all required) regardless of its declared
+        `resourceType`. A resource that doesn't match that shape - which in
+        practice means any real non-Observation FHIR resource, e.g. Patient
+        or DiagnosticReport - fails per-entry and shows up in the response's
+        `parseIssues`, not as a top-level 400. Only an entry that already
+        matches the Observation shape byte-for-byte but carries a different
+        `resourceType` label would be silently dropped with no trace at all -
+        an unlikely edge case in practice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicImportBundle'
+            example:
+              resourceType: Bundle
+              id: Bundle1800003096820
+              meta:
+                lastUpdated: '2025-07-01T14:40:00+02:00'
+              entry:
+                - resource:
+                    resourceType: Observation
+                    id: SWL-2507011234-2025-07-01-1
+                    meta:
+                      versionId: '1'
+                      lastUpdated: '2025-07-01T14:40:00+02:00'
+                      source: '#3d14d35eb0a622ea'
+                      profile:
+                        - https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab
+                    status: final
+                    code:
+                      coding:
+                        - system: http://loinc.org
+                          code: '6690-2'
+                    subject:
+                      reference: Patient/code-01
+                    effectiveDateTime: '2025-07-01T12:40:00+02:00'
+                    valueQuantity:
+                      value: 4.23
+                      unit: /nl
+                      system: http://unitsofmeasure.org
+                      code: /nl
+      responses:
+        '201':
+          description: |
+            Request was well-formed at the Bundle level. `success: true` does
+            NOT guarantee every entry was stored - inspect `failures` and
+            `parseIssues` too (see `MedicImportAck`). Verified against
+            staging: an unknown-PID entry returns HTTP 201 with
+            `success: true` and a `canBeSkippedAsError: true` failure entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicImportAck'
+        '400':
+          description: Bundle failed top-level schema validation (`E064`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleParseErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /medic-import/observation:
+    post:
+      operationId: importSingleObservationPost
+      summary: Import a single Observation (not wrapped in a Bundle)
+      description: |
+        Same Observation-level validation as the bundle endpoint, applied to
+        one raw resource. There is no outer-envelope validation here, so a
+        malformed body is reported inside a 201 response's `parseIssues`,
+        not as a 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicObservation'
+      responses:
+        '201':
+          description: See `POST /medic-import` - same ack semantics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicImportAck'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      operationId: importSingleObservationPut
+      summary: Identical to `POST /medic-import/observation`
+      description: |
+        Duplicated onto PUT at a customer's request; behavior is otherwise
+        identical to the POST variant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicObservation'
+      responses:
+        '200':
+          description: See `POST /medic-import` - same ack semantics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicImportAck'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    MedicApiKey:
+      type: apiKey
+      in: header
+      name: MEDIC-API-KEY
+      description: |
+        Base64-encoded JSON: `{"bhz": "<origin-id>", "apiKey": "<secret>"}`.
+        The `bhz` must match a value provisioned server-side; the whole
+        object is base64-encoded as a single token (not just the apiKey).
+  responses:
+    Unauthorized:
+      description: |
+        One of four causes, distinguishable by `errorCode` (empirically,
+        the body is just `{"errorCode": "..."}` - no `message` field):
+        - `E060` - header missing entirely
+        - `E061` - header parses fine, but `bhz` isn't a provisioned origin
+        - `E062` - `bhz` is known, but `apiKey` doesn't match it
+        - `E063` - header present but not valid base64(JSON) or missing
+          `bhz`/`apiKey` fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthErrorResponse'
+  schemas:
+    MedicImportBundle:
+      type: object
+      required: [resourceType, id, meta, entry]
+      properties:
+        resourceType:
+          type: string
+          enum: [Bundle]
+        id:
+          type: string
+        meta:
+          type: object
+          required: [lastUpdated]
+          properties:
+            lastUpdated:
+              $ref: '#/components/schemas/OffsetDateTime'
+        entry:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicBundleEntry'
+    MedicBundleEntry:
+      type: object
+      properties:
+        resource:
+          description: |
+            Validated against the Observation shape regardless of declared
+            `resourceType`; a non-conforming resource (any real non-Observation
+            FHIR resource) fails per-entry into `parseIssues` rather than
+            being silently dropped - see the operation description above.
+          oneOf:
+            - $ref: '#/components/schemas/MedicObservation'
+    MedicObservation:
+      type: object
+      required:
+        - resourceType
+        - id
+        - meta
+        - status
+        - code
+        - subject
+        - effectiveDateTime
+        - valueQuantity
+      properties:
+        resourceType:
+          type: string
+          enum: [Observation]
+        id:
+          type: string
+        meta:
+          $ref: '#/components/schemas/ResourceMeta'
+        status:
+          type: string
+          enum: [final]
+          description: Must be exactly "final" - any other FHIR status is rejected.
+        code:
+          $ref: '#/components/schemas/CodeableConcept'
+        subject:
+          allOf:
+            - $ref: '#/components/schemas/Reference'
+          description: |
+            `reference` must match `^Patient/[\w\d-]{0,30}$` and must
+            correspond to a PID known to Integrate. An unknown PID is a
+            skippable failure (`canBeSkippedAsError: true`), not a hard error.
+        encounter:
+          allOf:
+            - $ref: '#/components/schemas/Reference'
+          description: 'Optional. `reference` must match `^Encounter/[\w\d]{0,30}$`.'
+        effectiveDateTime:
+          $ref: '#/components/schemas/OffsetDateTime'
+        valueQuantity:
+          $ref: '#/components/schemas/Quantity'
+    ResourceMeta:
+      type: object
+      required: [versionId, lastUpdated, source]
+      properties:
+        versionId:
+          type: string
+        lastUpdated:
+          $ref: '#/components/schemas/OffsetDateTime'
+        source:
+          type: string
+        profile:
+          type: array
+          items:
+            type: string
+            format: uri
+          example:
+            - https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab
+    CodeableConcept:
+      type: object
+      required: [coding]
+      properties:
+        coding:
+          type: array
+          minItems: 1
+          description: The `code` of the first entry is taken as the LOINC code.
+          items:
+            $ref: '#/components/schemas/Coding'
+        text:
+          type: string
+    Coding:
+      type: object
+      required: [system, code]
+      properties:
+        system:
+          type: string
+          format: uri
+        code:
+          type: string
+    Reference:
+      type: object
+      required: [reference]
+      properties:
+        reference:
+          type: string
+    Quantity:
+      type: object
+      required: [value, unit, system, code]
+      properties:
+        value:
+          type: number
+        unit:
+          type: string
+        system:
+          type: string
+          format: uri
+        code:
+          type: string
+    OffsetDateTime:
+      type: string
+      description: |
+        Must include an explicit UTC offset, e.g. `+02:00`. A bare "Z"/Zulu
+        suffix is REJECTED by server-side validation.
+      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?\+\d{2}:\d{2}$'
+      example: '2025-07-01T12:40:00+02:00'
+    MedicImportAck:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          description: |
+            Does NOT guarantee every entry was stored. An unknown-PID entry
+            reports `canBeSkippedAsError: true` in `failures` but does not
+            flip this to `false`. Always inspect `failures` and
+            `parseIssues`, not just this flag.
+        failures:
+          type: array
+          items:
+            type: object
+            properties:
+              reason:
+                type: string
+              canBeSkippedAsError:
+                type: boolean
+                description: 'true for e.g. an unknown PID; such entries are not treated as hard failures.'
+        parseIssues:
+          type: array
+          description: |
+            Present at runtime for entries that failed Observation-level
+            schema validation (one item per unparseable entry). Not part of
+            the historical `MedicImportAckDto` type, but is emitted by the
+            service - clients should tolerate/read it.
+          items: {}
+    AuthErrorResponse:
+      type: object
+      required: [errorCode]
+      description: |
+        Verified shape (see the `Unauthorized` response above): just the
+        error code, no `message` field, no other properties.
+      properties:
+        errorCode:
+          type: string
+          enum: [E060, E061, E062, E063]
+    BundleParseErrorResponse:
+      type: object
+      required: [errorCode]
+      additionalProperties: true
+      description: |
+        `errorCode` is always `"E064"`. The remaining properties are spread
+        directly from the underlying Zod validation error (e.g. an `issues`
+        array with per-field `path`/`message`/`code`) - useful for debugging
+        which field failed, but not a formally stable contract since it's a
+        library error object, not a hand-defined DTO.
+      properties:
+        errorCode:
+          type: string
+          enum: [E064]

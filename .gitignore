@@ -1,0 +1,12 @@
+target/
+dependency-reduced-pom.xml
+.DS_Store
+
+# Local documentation and agent configuration
+docs/
+.claude/
+.codex/
+.agents/
+CLAUDE.md
+AGENTS.md
+ZUser- Medic.postman_collection.json

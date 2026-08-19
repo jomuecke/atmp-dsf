@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ATMP Transaction Bundle Generator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #5c6773;
+      --line: #d8dee6;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --code-bg: #111827;
+      --code-ink: #e5e7eb;
+      --soft: #eef6f5;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wrap {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    main {
+      padding: 24px 0 32px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, 440px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    section,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-weight: 650;
+      font-size: 13px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+    }
+
+    input,
+    select {
+      height: 40px;
+      padding: 0 10px;
+    }
+
+    textarea {
+      min-height: 156px;
+      resize: vertical;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid rgba(15, 118, 110, 0.22);
+      border-color: var(--accent);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background: #e9edf2;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      height: 36px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab[aria-selected="true"] {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      background: var(--soft);
+      border: 1px solid #cde7e3;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .switch-row input {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      accent-color: var(--accent);
+    }
+
+    .switch-copy {
+      display: grid;
+      gap: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      min-height: 38px;
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: #aab4c0;
+    }
+
+    .primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .primary:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .secondary {
+      background: #f8fafc;
+    }
+
+    .file-input {
+      padding: 8px;
+      height: auto;
+    }
+
+    .output-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #edf2f7;
+      color: #334155;
+      white-space: nowrap;
+    }
+
+    pre {
+      margin: 0;
+      min-height: 520px;
+      max-height: 72vh;
+      overflow: auto;
+      padding: 16px;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+
+    .messages {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .message {
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .message.warn {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: var(--warn);
+    }
+
+    .message.error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--danger);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .two {
+        grid-template-columns: 1fr;
+      }
+
+      pre {
+        min-height: 420px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap topbar">
+      <div>
+        <h1>ATMP Transaction Bundle Generator</h1>
+        <p class="subtitle">Create upload-ready FHIR XML for ATMP ResearchSubject entries.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="layout">
+      <div class="panel">
+        <div class="tabs" role="tablist" aria-label="Generation mode">
+          <button class="tab" id="singleTab" type="button" role="tab" aria-selected="true">Single</button>
+          <button class="tab" id="bulkTab" type="button" role="tab" aria-selected="false">Bulk CSV</button>
+        </div>
+
+        <label class="switch-row">
+          <span class="switch-copy">
+            <span>Include ResearchStudy entry</span>
+            <span class="hint">Keep off after the study already exists on the FHIR server.</span>
+          </span>
+          <input id="includeStudy" type="checkbox">
+        </label>
+
+        <div class="field-grid" style="margin-bottom: 16px;">
+          <label>
+            Default participation start
+            <input id="defaultPeriodStart" type="date" value="2026-01-01">
+            <span class="hint">Used as ResearchSubject.period.start when no row-specific date is supplied.</span>
+          </label>
+        </div>
+
+        <div id="singlePanel">
+          <div class="section-title">
+            <h2>Patient</h2>
+          </div>
+          <div class="field-grid">
+            <label>
+              ResearchSubject id
+              <input id="subjectId" value="atmp-subject-code-01" autocomplete="off">
+              <span class="hint">FHIR logical id for the ResearchSubject.</span>
+            </label>
+            <label>
+              ATMP pseudonym
+              <input id="pseudonym" value="code-01" autocomplete="off">
+            </label>
+            <label>
+              Patient reference
+              <input id="patientReference" value="Patient/patient-0000123456" autocomplete="off">
+              <span class="hint">Use either Patient/&lt;id&gt; or just the patient id.</span>
+            </label>
+            <div class="field-grid two">
+              <label>
+                Status
+                <select id="status">
+                  <option value="on-study" selected>on-study</option>
+                  <option value="off-study">off-study</option>
+                  <option value="withdrawn">withdrawn</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div id="bulkPanel" class="hidden">
+          <div class="section-title">
+            <h2>CSV Input</h2>
+            <button class="secondary" id="sampleCsv" type="button">Sample</button>
+          </div>
+          <div class="field-grid">
+            <label>
+              CSV file
+              <input class="file-input" id="csvFile" type="file" accept=".csv,text/csv">
+            </label>
+            <label>
+              CSV rows
+              <textarea id="csvText" spellcheck="false" placeholder="subject_id,patient_reference,pseudonym,status,period_start&#10;atmp-subject-code-01,Patient/patient-0000123456,code-01,on-study,2026-01-01"></textarea>
+              <span class="hint">Required columns: subject_id, patient_reference, pseudonym. Optional: status, period_start.</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="generate" type="button">Generate XML</button>
+          <button id="copy" type="button">Copy</button>
+          <button id="download" type="button">Download</button>
+          <button id="reset" type="button">Reset</button>
+        </div>
+
+        <div class="messages" id="messages" aria-live="polite"></div>
+      </div>
+
+      <section>
+        <div class="output-head">
+          <h2>FHIR XML</h2>
+          <div class="meta-line">
+            <span class="pill" id="entryCount">0 entries</span>
+            <span class="pill" id="modePill">single</span>
+          </div>
+        </div>
+        <pre id="output" aria-label="Generated FHIR XML"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const state = {
+      mode: "single",
+      xml: ""
+    };
+
+    const els = {
+      singleTab: document.getElementById("singleTab"),
+      bulkTab: document.getElementById("bulkTab"),
+      singlePanel: document.getElementById("singlePanel"),
+      bulkPanel: document.getElementById("bulkPanel"),
+      includeStudy: document.getElementById("includeStudy"),
+      subjectId: document.getElementById("subjectId"),
+      pseudonym: document.getElementById("pseudonym"),
+      patientReference: document.getElementById("patientReference"),
+      defaultPeriodStart: document.getElementById("defaultPeriodStart"),
+      status: document.getElementById("status"),
+      csvFile: document.getElementById("csvFile"),
+      csvText: document.getElementById("csvText"),
+      sampleCsv: document.getElementById("sampleCsv"),
+      generate: document.getElementById("generate"),
+      copy: document.getElementById("copy"),
+      download: document.getElementById("download"),
+      reset: document.getElementById("reset"),
+      output: document.getElementById("output"),
+      messages: document.getElementById("messages"),
+      entryCount: document.getElementById("entryCount"),
+      modePill: document.getElementById("modePill")
+    };
+
+    function xmlEscape(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function normalizePatientReference(value) {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return "";
+      }
+      return trimmed.includes("/") ? trimmed : `Patient/${trimmed}`;
+    }
+
+    function validFhirId(value) {
+      return /^[A-Za-z0-9\-.]{1,64}$/.test(value);
+    }
+
+    function validFhirDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(value);
+    }
+
+    function message(type, text) {
+      const item = document.createElement("div");
+      item.className = `message ${type}`;
+      item.textContent = text;
+      els.messages.appendChild(item);
+    }
+
+    function clearMessages() {
+      els.messages.replaceChildren();
+    }
+
+    function studyEntry() {
+      return [
+        "  <entry>",
+        "    <fullUrl value=\"ResearchStudy/atmp-study\"/>",
+        "    <resource>",
+        "      <ResearchStudy>",
+        "        <id value=\"atmp-study\"/>",
+        "        <meta>",
+        "          <profile value=\"https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie\"/>",
+        "        </meta>",
+        "        <identifier>",
+        "          <system value=\"https://ukhd.de/fhir/sid/research-study\"/>",
+        "          <value value=\"ATMP\"/>",
+        "        </identifier>",
+        "        <status value=\"active\"/>",
+        "        <title value=\"ATMP Study\"/>",
+        "      </ResearchStudy>",
+        "    </resource>",
+        "    <request>",
+        "      <method value=\"PUT\"/>",
+        "      <url value=\"ResearchStudy/atmp-study\"/>",
+        "    </request>",
+        "  </entry>"
+      ].join("\n");
+    }
+
+    function subjectEntry(row) {
+      const id = xmlEscape(row.subjectId);
+      const pseudonym = xmlEscape(row.pseudonym);
+      const status = xmlEscape(row.status || "on-study");
+      const patientReference = xmlEscape(normalizePatientReference(row.patientReference));
+      const periodStart = xmlEscape(row.periodStart || els.defaultPeriodStart.value || "2026-01-01");
+
+      return [
+        "  <entry>",
+        "    <fullUrl value=\"ResearchSubject/" + id + "\"/>",
+        "    <resource>",
+        "      <ResearchSubject>",
+        "        <id value=\"" + id + "\"/>",
+        "        <meta>",
+        "          <profile value=\"https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-proband\"/>",
+        "        </meta>",
+        "        <identifier>",
+        "          <type>",
+        "            <coding>",
+        "              <system value=\"http://terminology.hl7.org/CodeSystem/v2-0203\"/>",
+        "              <code value=\"ANON\"/>",
+        "            </coding>",
+        "          </type>",
+        "          <system value=\"https://ukhd.de/fhir/sid/atmp-pseudonym\"/>",
+        "          <value value=\"" + pseudonym + "\"/>",
+        "        </identifier>",
+        "        <status value=\"" + status + "\"/>",
+        "        <period>",
+        "          <start value=\"" + periodStart + "\"/>",
+        "          <end>",
+        "            <extension url=\"http://hl7.org/fhir/StructureDefinition/data-absent-reason\">",
+        "              <valueCode value=\"unknown\"/>",
+        "            </extension>",
+        "          </end>",
+        "        </period>",
+        "        <study>",
+        "          <reference value=\"ResearchStudy/atmp-study\"/>",
+        "        </study>",
+        "        <individual>",
+        "          <reference value=\"" + patientReference + "\"/>",
+        "        </individual>",
+        "        <consent>",
+        "          <extension url=\"http://hl7.org/fhir/StructureDefinition/data-absent-reason\">",
+        "            <valueCode value=\"unknown\"/>",
+        "          </extension>",
+        "        </consent>",
+        "      </ResearchSubject>",
+        "    </resource>",
+        "    <request>",
+        "      <method value=\"PUT\"/>",
+        "      <url value=\"ResearchSubject/" + id + "\"/>",
+        "    </request>",
+        "  </entry>"
+      ].join("\n");
+    }
+
+    function bundle(entries) {
+      return [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<Bundle xmlns=\"http://hl7.org/fhir\">",
+        "  <type value=\"transaction\"/>",
+        "",
+        entries.join("\n\n"),
+        "</Bundle>"
+      ].join("\n");
+    }
+
+    function validateRows(rows) {
+      const errors = [];
+      const seen = new Set();
+      rows.forEach((row, index) => {
+        const line = index + 1;
+        if (!row.subjectId) {
+          errors.push(`Row ${line}: missing subject_id.`);
+        } else if (!validFhirId(row.subjectId)) {
+          errors.push(`Row ${line}: subject_id may only contain letters, numbers, hyphen, and dot, max 64 chars.`);
+        }
+        if (seen.has(row.subjectId)) {
+          errors.push(`Row ${line}: duplicate subject_id '${row.subjectId}'.`);
+        }
+        seen.add(row.subjectId);
+        if (!row.pseudonym) {
+          errors.push(`Row ${line}: missing pseudonym.`);
+        }
+        if (!row.patientReference) {
+          errors.push(`Row ${line}: missing patient_reference.`);
+        }
+        if (row.status && !["on-study", "off-study", "withdrawn"].includes(row.status)) {
+          errors.push(`Row ${line}: status must be on-study, off-study, or withdrawn.`);
+        }
+        if (!row.periodStart) {
+          errors.push(`Row ${line}: missing period_start/default participation start.`);
+        } else if (!validFhirDate(row.periodStart)) {
+          errors.push(`Row ${line}: period_start must use YYYY-MM-DD.`);
+        }
+      });
+      return errors;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let value = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (char === "\"" && next === "\"") {
+            value += "\"";
+            i += 1;
+          } else if (char === "\"") {
+            inQuotes = false;
+          } else {
+            value += char;
+          }
+        } else if (char === "\"") {
+          inQuotes = true;
+        } else if (char === ",") {
+          row.push(value);
+          value = "";
+        } else if (char === "\n") {
+          row.push(value);
+          rows.push(row);
+          row = [];
+          value = "";
+        } else if (char !== "\r") {
+          value += char;
+        }
+      }
+
+      row.push(value);
+      rows.push(row);
+
+      const nonEmpty = rows.filter((cells) => cells.some((cell) => cell.trim() !== ""));
+      if (nonEmpty.length === 0) {
+        return [];
+      }
+
+      const headers = nonEmpty[0].map((cell) => cell.trim().toLowerCase());
+      const index = (name) => headers.indexOf(name);
+      const subjectIndex = index("subject_id");
+      const patientIndex = index("patient_reference");
+      const pseudonymIndex = index("pseudonym");
+      const statusIndex = index("status");
+      const periodStartIndex = index("period_start");
+
+      if (subjectIndex === -1 || patientIndex === -1 || pseudonymIndex === -1) {
+        throw new Error("CSV header must include subject_id, patient_reference, and pseudonym.");
+      }
+
+      return nonEmpty.slice(1).map((cells) => ({
+        subjectId: (cells[subjectIndex] || "").trim(),
+        patientReference: (cells[patientIndex] || "").trim(),
+        pseudonym: (cells[pseudonymIndex] || "").trim(),
+        status: (statusIndex >= 0 ? (cells[statusIndex] || "") : "on-study").trim() || "on-study",
+        periodStart: (periodStartIndex >= 0 ? (cells[periodStartIndex] || "") : els.defaultPeriodStart.value).trim() || els.defaultPeriodStart.value
+      }));
+    }
+
+    function collectRows() {
+      if (state.mode === "single") {
+        return [{
+          subjectId: els.subjectId.value.trim(),
+          pseudonym: els.pseudonym.value.trim(),
+          patientReference: els.patientReference.value.trim(),
+          status: els.status.value,
+          periodStart: els.defaultPeriodStart.value.trim()
+        }];
+      }
+      return parseCsv(els.csvText.value);
+    }
+
+    function render() {
+      clearMessages();
+      let rows = [];
+      try {
+        rows = collectRows();
+      } catch (error) {
+        message("error", error.message);
+        return;
+      }
+
+      if (rows.length === 0) {
+        message("error", "No patient rows found.");
+        return;
+      }
+
+      const errors = validateRows(rows);
+      if (errors.length > 0) {
+        errors.slice(0, 8).forEach((error) => message("error", error));
+        if (errors.length > 8) {
+          message("error", `${errors.length - 8} more validation errors.`);
+        }
+        return;
+      }
+
+      const entries = [];
+      if (els.includeStudy.checked) {
+        entries.push(studyEntry());
+      }
+      rows.forEach((row) => entries.push(subjectEntry(row)));
+
+      state.xml = bundle(entries);
+      els.output.textContent = state.xml;
+      els.entryCount.textContent = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+      els.modePill.textContent = state.mode;
+      if (els.includeStudy.checked) {
+        message("warn", "Study entry included. Leave it off when ResearchStudy/atmp-study already exists.");
+      }
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      els.singleTab.setAttribute("aria-selected", String(mode === "single"));
+      els.bulkTab.setAttribute("aria-selected", String(mode === "bulk"));
+      els.singlePanel.classList.toggle("hidden", mode !== "single");
+      els.bulkPanel.classList.toggle("hidden", mode !== "bulk");
+      els.modePill.textContent = mode;
+      render();
+    }
+
+    async function copyXml() {
+      if (!state.xml) {
+        render();
+      }
+      if (!state.xml) {
+        return;
+      }
+      await navigator.clipboard.writeText(state.xml);
+      clearMessages();
+      message("warn", "XML copied to clipboard.");
+    }
+
+    function downloadXml() {
+      if (!state.xml) {
+        render();
+      }
+      if (!state.xml) {
+        return;
+      }
+      const blob = new Blob([state.xml], { type: "application/fhir+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `atmp-transaction-bundle-${stamp}.xml`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function reset() {
+      els.includeStudy.checked = false;
+      els.subjectId.value = "atmp-subject-code-01";
+      els.pseudonym.value = "code-01";
+      els.patientReference.value = "Patient/patient-0000123456";
+      els.defaultPeriodStart.value = "2026-01-01";
+      els.status.value = "on-study";
+      els.csvFile.value = "";
+      els.csvText.value = "";
+      render();
+    }
+
+    els.singleTab.addEventListener("click", () => setMode("single"));
+    els.bulkTab.addEventListener("click", () => setMode("bulk"));
+    els.generate.addEventListener("click", render);
+    els.copy.addEventListener("click", copyXml);
+    els.download.addEventListener("click", downloadXml);
+    els.reset.addEventListener("click", reset);
+    els.includeStudy.addEventListener("change", render);
+    els.sampleCsv.addEventListener("click", () => {
+      els.csvText.value = [
+        "subject_id,patient_reference,pseudonym,status,period_start",
+        "atmp-subject-code-01,Patient/patient-0000123456,code-01,on-study,2026-01-01",
+        "atmp-subject-code-02,0001234567,code-02,on-study,2026-01-01",
+        "atmp-subject-code-03,Patient/patient-0012345678,code-03,withdrawn,2026-01-01"
+      ].join("\n");
+      render();
+    });
+
+    [els.subjectId, els.pseudonym, els.patientReference, els.defaultPeriodStart, els.status, els.csvText].forEach((el) => {
+      el.addEventListener("input", render);
+      el.addEventListener("change", render);
+    });
+
+    els.csvFile.addEventListener("change", async () => {
+      const file = els.csvFile.files[0];
+      if (!file) {
+        return;
+      }
+      els.csvText.value = await file.text();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
