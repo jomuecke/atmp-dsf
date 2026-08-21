@@ -6,13 +6,13 @@ import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * The register's import acknowledgement (HTTP 201 body of {@code POST /medic-import}).
+ * The register's import acknowledgement returned by {@code POST /medic-import}.
  *
  * <p>
- * {@code success: true} does <b>not</b> mean every entry was stored: entries that failed the register's per-entry
- * validation are reported in {@code parseIssues}, and entries rejected for other reasons (e.g. an unknown PID) in
- * {@code failures}, both without flipping {@code success}. A caller that only checks the HTTP status silently loses
- * data, so {@link #isFullyAccepted()} is what the process acts on.
+ * Supports both acknowledgement contracts used by the ATMP register implementations: the original
+ * {@code success/failures/parseIssues} shape and the DIZ {@code entries[]} shape. A caller that only checks the HTTP
+ * status can silently lose data, especially for a DIZ HTTP 207 response, so {@link #isFullyAccepted()} is what the
+ * process acts on.
  */
 public record RegisterAck(boolean success, List<Failure> failures, List<String> parseIssues)
 {
@@ -43,6 +43,9 @@ public record RegisterAck(boolean success, List<Failure> failures, List<String> 
 	 */
 	public static RegisterAck from(JsonNode body)
 	{
+		if (body.has("entries"))
+			return fromDizEntries(body.get("entries"));
+
 		boolean success = !body.hasNonNull("success") || body.get("success").asBoolean(true);
 
 		List<Failure> failures = new ArrayList<>();
@@ -55,6 +58,36 @@ public record RegisterAck(boolean success, List<Failure> failures, List<String> 
 			body.get("parseIssues").forEach(i -> parseIssues.add(i.toString()));
 
 		return new RegisterAck(success, List.copyOf(failures), List.copyOf(parseIssues));
+	}
+
+	private static RegisterAck fromDizEntries(JsonNode entries)
+	{
+		if (!entries.isArray())
+			return new RegisterAck(false, List.of(),
+					List.of("Register acknowledgement field 'entries' is not an array"));
+
+		List<Failure> failures = new ArrayList<>();
+		List<String> parseIssues = new ArrayList<>();
+
+		entries.forEach(entry ->
+		{
+			String status = entry.path("status").asText("");
+			switch (status)
+			{
+				case "stored" -> {
+				}
+				case "skipped" -> {
+					String code = entry.path("code").asText("");
+					String reason = entry.path("reason").asText("");
+					String description = code + (reason.isBlank() ? "" : ": " + reason);
+					failures.add(new Failure(description, "DIZ-E101".equals(code)));
+				}
+				case "rejected" -> parseIssues.add(entry.toString());
+				default -> parseIssues.add("Unknown register entry status: " + entry);
+			}
+		});
+
+		return new RegisterAck(true, List.copyOf(failures), List.copyOf(parseIssues));
 	}
 
 	/** {@code true} only if the register reported no problem at all with any entry. */

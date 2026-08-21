@@ -28,14 +28,9 @@ public class AtmpConfig
 	private String fhirServerId;
 
 	@ProcessDocumentation(required = true, processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Base URL of the MEDIC / integrate-ATMP REST API; the configured import path is appended without duplicating a trailing slash", example = "https://medic-staging.dkfz.de")
+			"ukhdde_atmpDataTransfer" }, description = "Complete URL of the MEDIC / integrate-ATMP endpoint that accepts collection Bundles; the process posts to this exact URL without appending a path", example = "https://medic-staging.dkfz.de/medic-import")
 	@Value("${de.ukhd.atmp.api.url:#{null}}")
 	private String apiUrl;
-
-	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Path below the MEDIC / integrate-ATMP API base URL that accepts collection Bundles", example = "/medic-import")
-	@Value("${de.ukhd.atmp.api.import.path:/api/medic-import}")
-	private String apiImportPath;
 
 	@ProcessDocumentation(processNames = {
 			"ukhdde_atmpDataTransfer" }, description = "BHZ identity used with the raw register API key to construct the Base64 MEDIC-API-KEY header; leave empty only when the configured key file already contains the complete encoded header value", example = "bhz-demo")
@@ -94,7 +89,7 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClient registerClient()
 	{
-		return new RegisterClient(apiUrl, apiImportPath, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
+		return new RegisterClient(apiUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
 				Duration.parse(apiRequestTimeout));
 	}
 
