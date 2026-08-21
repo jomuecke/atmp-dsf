@@ -30,7 +30,7 @@ public record RegisterAck(boolean success, List<Failure> failures, List<String> 
 		}
 	}
 
-	/** Ack for a 2xx response with no body to inspect: accepted, with nothing further known. */
+	/** Ack for a successful non-207 response with no body to inspect: accepted, with nothing further known. */
 	public static RegisterAck accepted()
 	{
 		return new RegisterAck(true, List.of(), List.of());

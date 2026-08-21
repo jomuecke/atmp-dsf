@@ -30,7 +30,7 @@ public class AtmpConfig
 	@ProcessDocumentation(required = true, processNames = {
 			"ukhdde_atmpDataTransfer" }, description = "Complete URL of the MEDIC / integrate-ATMP endpoint that accepts collection Bundles; the process posts to this exact URL without appending a path", example = "https://medic-staging.dkfz.de/medic-import")
 	@Value("${de.ukhd.atmp.api.url:#{null}}")
-	private String apiUrl;
+	private String importEndpointUrl;
 
 	@ProcessDocumentation(processNames = {
 			"ukhdde_atmpDataTransfer" }, description = "BHZ identity used with the raw register API key to construct the Base64 MEDIC-API-KEY header; leave empty only when the configured key file already contains the complete encoded header value", example = "bhz-demo")
@@ -89,7 +89,7 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClient registerClient()
 	{
-		return new RegisterClient(apiUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
+		return new RegisterClient(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
 				Duration.parse(apiRequestTimeout));
 	}
 

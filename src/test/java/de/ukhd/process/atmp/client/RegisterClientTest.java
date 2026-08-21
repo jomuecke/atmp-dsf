@@ -75,6 +75,38 @@ public class RegisterClientTest
 	}
 
 	@Test
+	public void testHttpMultiStatusWithoutUsableEntriesIsNotFullyAccepted() throws Exception
+	{
+		HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		server.createContext("/medic-import", exchange ->
+		{
+			exchange.sendResponseHeaders(207, -1);
+			exchange.close();
+		});
+		server.start();
+
+		Path apiKeyFile = Files.createTempFile("atmp-register-api-key", ".txt");
+		try
+		{
+			Files.writeString(apiKeyFile, "test-key");
+			RegisterClient client = new RegisterClient(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", apiKeyFile.toString(),
+					Duration.ofSeconds(2), Duration.ofSeconds(2));
+			client.afterPropertiesSet();
+
+			RegisterAck ack = client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
+
+			assertFalse(ack.isFullyAccepted());
+			assertFalse(ack.parseIssues().isEmpty());
+		}
+		finally
+		{
+			server.stop(0);
+			Files.deleteIfExists(apiKeyFile);
+		}
+	}
+
+	@Test
 	public void testSendUsesRequiredHttpContractWithoutCleartextHttp2Upgrade() throws Exception
 	{
 		byte[] accepted = "{\"success\":true,\"failures\":[],\"parseIssues\":[]}".getBytes(StandardCharsets.UTF_8);

@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -135,9 +136,9 @@ public class RegisterClient implements InitializingBean
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private String apiKeyHeaderValue;
 
-	public RegisterClient(String apiUrl, String apiKeyFile)
+	public RegisterClient(String importEndpointUrl, String apiKeyFile)
 	{
-		this(apiUrl, null, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
+		this(importEndpointUrl, null, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
 	}
 
 	/**
@@ -147,13 +148,13 @@ public class RegisterClient implements InitializingBean
 	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
 	 *            job thread indefinitely, not <code>null</code>
 	 */
-	public RegisterClient(String apiUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
+	public RegisterClient(String importEndpointUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
 	{
-		this(apiUrl, null, apiKeyFile, connectTimeout, requestTimeout);
+		this(importEndpointUrl, null, apiKeyFile, connectTimeout, requestTimeout);
 	}
 
 	/**
-	 * @param apiUrl
+	 * @param importEndpointUrl
 	 *            complete URL that accepts collection Bundles, not blank
 	 * @param bhz
 	 *            site identity used to build the Base64-encoded {@code MEDIC-API-KEY} JSON together with the raw key
@@ -164,10 +165,10 @@ public class RegisterClient implements InitializingBean
 	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
 	 *            job thread indefinitely, not <code>null</code>
 	 */
-	public RegisterClient(String apiUrl, String bhz, String apiKeyFile, Duration connectTimeout,
+	public RegisterClient(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
 			Duration requestTimeout)
 	{
-		this.importEndpoint = configuredEndpoint(apiUrl);
+		this.importEndpoint = configuredEndpoint(importEndpointUrl);
 		this.bhz = bhz == null ? null : bhz.trim();
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
 		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
@@ -196,12 +197,12 @@ public class RegisterClient implements InitializingBean
 		}
 	}
 
-	private static URI configuredEndpoint(String apiUrl)
+	private static URI configuredEndpoint(String importEndpointUrl)
 	{
-		Objects.requireNonNull(apiUrl, "apiUrl");
-		String trimmed = apiUrl.trim();
+		Objects.requireNonNull(importEndpointUrl, "importEndpointUrl");
+		String trimmed = importEndpointUrl.trim();
 		if (trimmed.isEmpty())
-			throw new IllegalArgumentException("apiUrl is empty");
+			throw new IllegalArgumentException("importEndpointUrl is empty");
 
 		return URI.create(trimmed);
 	}
@@ -253,7 +254,7 @@ public class RegisterClient implements InitializingBean
 			throw new RegisterRejectedException("Register API at '" + importEndpoint
 					+ "' rejected the bundle with status " + status + ": " + truncated(response.body()), null);
 
-		RegisterAck ack = parseAck(importEndpoint, response.body());
+		RegisterAck ack = parseAck(importEndpoint, status, response.body());
 
 		if (ack.isFullyAccepted())
 			logger.info("Sent bundle to register API at '{}', status {}, fully accepted", importEndpoint, status);
@@ -264,10 +265,13 @@ public class RegisterClient implements InitializingBean
 		return ack;
 	}
 
-	private RegisterAck parseAck(URI uri, String body)
+	private RegisterAck parseAck(URI uri, int httpStatus, String body)
 	{
 		if (body == null || body.isBlank())
 		{
+			if (httpStatus == 207)
+				return incompleteMultiStatusAck();
+
 			logger.warn("Register API at '{}' returned an empty acknowledgement body, assuming the bundle was accepted",
 					uri);
 			return RegisterAck.accepted();
@@ -282,7 +286,8 @@ public class RegisterClient implements InitializingBean
 						"Register API at '" + uri + "' returned a non-object acknowledgement: " + truncated(body),
 						null);
 
-			return RegisterAck.from(json);
+			RegisterAck ack = RegisterAck.from(json);
+			return httpStatus == 207 && ack.isFullyAccepted() ? incompleteMultiStatusAck() : ack;
 		}
 		catch (IOException exception)
 		{
@@ -290,6 +295,12 @@ public class RegisterClient implements InitializingBean
 			throw new RegisterRejectedException("Could not read the acknowledgement of register API at '" + uri + "': "
 					+ exception.getMessage() + ", body: " + truncated(body), exception);
 		}
+	}
+
+	private RegisterAck incompleteMultiStatusAck()
+	{
+		return new RegisterAck(false, List.of(),
+				List.of("HTTP 207 Multi-Status did not contain a usable skipped or rejected entry"));
 	}
 
 	private String truncated(String body)
