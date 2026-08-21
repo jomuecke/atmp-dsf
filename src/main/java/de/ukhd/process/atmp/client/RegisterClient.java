@@ -8,6 +8,8 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -18,9 +20,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
- * {@code {apiUrl}/api/medic-import}, authenticated with the site's API key sent as {@code MEDIC-API-KEY} header. The
- * key is read from a docker-secret file and never logged.
+ * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to the exact
+ * configured endpoint URL, authenticated with the site's {@code MEDIC-API-KEY} header. The secret is read from a
+ * docker-secret file and never logged.
  *
  * <p>
  * Failures are classified for the caller (see {@link RegisterException#affectsWholeCycle()}), because they need
@@ -117,7 +119,6 @@ public class RegisterClient implements InitializingBean
 
 	private static final Logger logger = LoggerFactory.getLogger(RegisterClient.class);
 
-	public static final String IMPORT_PATH = "/api/medic-import";
 	public static final String API_KEY_HEADER = "MEDIC-API-KEY";
 
 	public static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
@@ -126,17 +127,18 @@ public class RegisterClient implements InitializingBean
 	/** Upper bound on how much of an error body is carried into exception messages, logs and audit entries. */
 	private static final int MAX_ERROR_BODY_LENGTH = 500;
 
-	private final String apiUrl;
+	private final URI importEndpoint;
+	private final String bhz;
 	private final Path apiKeyFile;
 	private final Duration requestTimeout;
 
 	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper = new ObjectMapper();
-	private String apiKey;
+	private String apiKeyHeaderValue;
 
-	public RegisterClient(String apiUrl, String apiKeyFile)
+	public RegisterClient(String importEndpointUrl, String apiKeyFile)
 	{
-		this(apiUrl, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
+		this(importEndpointUrl, null, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
 	}
 
 	/**
@@ -146,9 +148,28 @@ public class RegisterClient implements InitializingBean
 	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
 	 *            job thread indefinitely, not <code>null</code>
 	 */
-	public RegisterClient(String apiUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
+	public RegisterClient(String importEndpointUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
 	{
-		this.apiUrl = apiUrl;
+		this(importEndpointUrl, null, apiKeyFile, connectTimeout, requestTimeout);
+	}
+
+	/**
+	 * @param importEndpointUrl
+	 *            complete URL that accepts collection Bundles, not blank
+	 * @param bhz
+	 *            site identity used to build the Base64-encoded {@code MEDIC-API-KEY} JSON together with the raw key
+	 *            file; blank preserves the legacy behavior where the file already contains the complete header value
+	 * @param connectTimeout
+	 *            how long to wait for the TCP/TLS connection, not <code>null</code>
+	 * @param requestTimeout
+	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
+	 *            job thread indefinitely, not <code>null</code>
+	 */
+	public RegisterClient(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
+			Duration requestTimeout)
+	{
+		this.importEndpoint = configuredEndpoint(importEndpointUrl);
+		this.bhz = bhz == null ? null : bhz.trim();
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
 		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
 
@@ -159,13 +180,31 @@ public class RegisterClient implements InitializingBean
 	@Override
 	public void afterPropertiesSet() throws Exception
 	{
-		Objects.requireNonNull(apiUrl, "apiUrl");
 		Objects.requireNonNull(apiKeyFile, "apiKeyFile");
 
-		apiKey = Files.readString(apiKeyFile).trim();
+		String keyFileValue = Files.readString(apiKeyFile).trim();
 
-		if (apiKey.isEmpty())
+		if (keyFileValue.isEmpty())
 			throw new IllegalArgumentException("Register API key file '" + apiKeyFile + "' is empty");
+
+		if (bhz == null || bhz.isBlank())
+			apiKeyHeaderValue = keyFileValue;
+		else
+		{
+			byte[] authJson = objectMapper.createObjectNode().put("bhz", bhz).put("apiKey", keyFileValue).toString()
+					.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			apiKeyHeaderValue = Base64.getEncoder().encodeToString(authJson);
+		}
+	}
+
+	private static URI configuredEndpoint(String importEndpointUrl)
+	{
+		Objects.requireNonNull(importEndpointUrl, "importEndpointUrl");
+		String trimmed = importEndpointUrl.trim();
+		if (trimmed.isEmpty())
+			throw new IllegalArgumentException("importEndpointUrl is empty");
+
+		return URI.create(trimmed);
 	}
 
 	/**
@@ -182,10 +221,8 @@ public class RegisterClient implements InitializingBean
 	 */
 	public RegisterAck send(String bundleJson)
 	{
-		URI uri = URI.create(apiUrl.replaceAll("/+$", "") + IMPORT_PATH);
-
-		HttpRequest request = HttpRequest.newBuilder(uri).header("Content-Type", "application/json")
-				.header("Accept", "application/json").header(API_KEY_HEADER, apiKey).timeout(requestTimeout)
+		HttpRequest request = HttpRequest.newBuilder(importEndpoint).header("Content-Type", "application/json")
+				.header("Accept", "application/json").header(API_KEY_HEADER, apiKeyHeaderValue).timeout(requestTimeout)
 				.POST(HttpRequest.BodyPublishers.ofString(bundleJson)).build();
 
 		HttpResponse<String> response;
@@ -199,39 +236,42 @@ public class RegisterClient implements InitializingBean
 				Thread.currentThread().interrupt();
 
 			throw new RegisterUnreachableException(
-					"Could not reach register API at '" + uri + "': " + exception.getMessage(), exception);
+					"Could not reach register API at '" + importEndpoint + "': " + exception.getMessage(), exception);
 		}
 
 		int status = response.statusCode();
 
 		if (status == 401)
-			throw new RegisterAuthException("Register API at '" + uri + "' rejected the " + API_KEY_HEADER
+			throw new RegisterAuthException("Register API at '" + importEndpoint + "' rejected the " + API_KEY_HEADER
 					+ " header (status 401): " + truncated(response.body())
 					+ " — E060 header missing, E061 unknown bhz, E062 wrong apiKey, E063 malformed header");
 
 		if (status >= 500)
-			throw new RegisterUnavailableException(
-					"Register API at '" + uri + "' returned status " + status + ": " + truncated(response.body()));
+			throw new RegisterUnavailableException("Register API at '" + importEndpoint + "' returned status " + status
+					+ ": " + truncated(response.body()));
 
 		if (status < 200 || status > 299)
-			throw new RegisterRejectedException("Register API at '" + uri + "' rejected the bundle with status "
-					+ status + ": " + truncated(response.body()), null);
+			throw new RegisterRejectedException("Register API at '" + importEndpoint
+					+ "' rejected the bundle with status " + status + ": " + truncated(response.body()), null);
 
-		RegisterAck ack = parseAck(uri, response.body());
+		RegisterAck ack = parseAck(importEndpoint, status, response.body());
 
 		if (ack.isFullyAccepted())
-			logger.info("Sent bundle to register API at '{}', status {}, fully accepted", uri, status);
+			logger.info("Sent bundle to register API at '{}', status {}, fully accepted", importEndpoint, status);
 		else
-			logger.warn("Register API at '{}' answered status {} but did not accept everything: {}", uri, status,
-					ack.describeProblems());
+			logger.warn("Register API at '{}' answered status {} but did not accept everything: {}", importEndpoint,
+					status, ack.describeProblems());
 
 		return ack;
 	}
 
-	private RegisterAck parseAck(URI uri, String body)
+	private RegisterAck parseAck(URI uri, int httpStatus, String body)
 	{
 		if (body == null || body.isBlank())
 		{
+			if (httpStatus == 207)
+				return incompleteMultiStatusAck();
+
 			logger.warn("Register API at '{}' returned an empty acknowledgement body, assuming the bundle was accepted",
 					uri);
 			return RegisterAck.accepted();
@@ -246,7 +286,8 @@ public class RegisterClient implements InitializingBean
 						"Register API at '" + uri + "' returned a non-object acknowledgement: " + truncated(body),
 						null);
 
-			return RegisterAck.from(json);
+			RegisterAck ack = RegisterAck.from(json);
+			return httpStatus == 207 && ack.isFullyAccepted() ? incompleteMultiStatusAck() : ack;
 		}
 		catch (IOException exception)
 		{
@@ -254,6 +295,12 @@ public class RegisterClient implements InitializingBean
 			throw new RegisterRejectedException("Could not read the acknowledgement of register API at '" + uri + "': "
 					+ exception.getMessage() + ", body: " + truncated(body), exception);
 		}
+	}
+
+	private RegisterAck incompleteMultiStatusAck()
+	{
+		return new RegisterAck(false, List.of(),
+				List.of("HTTP 207 Multi-Status did not contain a usable skipped or rejected entry"));
 	}
 
 	private String truncated(String body)
