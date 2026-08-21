@@ -37,10 +37,11 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-proxy-auth-failure", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			RegisterClient client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
+			client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
 					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, true, "wrong-password"));
 			client.afterPropertiesSet();
 
@@ -56,6 +57,7 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			proxy.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -92,10 +94,11 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-proxy-api-key", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			RegisterClient client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
+			client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
 					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, true, "proxy-password"));
 			client.afterPropertiesSet();
 
@@ -107,6 +110,7 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			proxy.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -138,12 +142,13 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-no-proxy-api-key", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
 			String endpoint = "http://127.0.0.1:" + target.getAddress().getPort() + "/medic-import";
-			RegisterClient client = new RegisterClient(endpoint, apiKeyFile.toString(), Duration.ofSeconds(2),
-					Duration.ofSeconds(2), proxyConfig(proxy, false, "proxy-password"));
+			client = new RegisterClient(endpoint, apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
+					proxyConfig(proxy, false, "proxy-password"));
 			client.afterPropertiesSet();
 
 			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
@@ -152,6 +157,7 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			proxy.stop(0);
 			target.stop(0);
 			Files.deleteIfExists(apiKeyFile);
@@ -224,12 +230,12 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-raw-api-key", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "  test-secret\n");
-			RegisterClient client = new RegisterClient(
-					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", "test-bhz",
-					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
+			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import",
+					"test-bhz", apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
 			client.afterPropertiesSet();
 
 			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
@@ -238,6 +244,7 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -274,12 +281,12 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-api-key", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			RegisterClient client = new RegisterClient(
-					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2));
+			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import",
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
 			client.afterPropertiesSet();
 
 			RegisterAck ack = client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
@@ -289,6 +296,7 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -318,12 +326,12 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-api-key", ".txt");
+		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "  test-key\n");
-			RegisterClient client = new RegisterClient(
-					"http://127.0.0.1:" + server.getAddress().getPort() + "/api/medic-import", apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2));
+			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/api/medic-import",
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
 			client.afterPropertiesSet();
 
 			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
@@ -334,8 +342,15 @@ public class RegisterClientTest
 		}
 		finally
 		{
+			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
+	}
+
+	private void close(RegisterClient client) throws Exception
+	{
+		if (client != null)
+			client.destroy();
 	}
 }
