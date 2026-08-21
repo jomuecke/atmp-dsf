@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -18,9 +19,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to
- * {@code {apiUrl}/api/medic-import}, authenticated with the site's API key sent as {@code MEDIC-API-KEY} header. The
- * key is read from a docker-secret file and never logged.
+ * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to a
+ * configurable import path, authenticated with the site's {@code MEDIC-API-KEY} header. The secret is read from a
+ * docker-secret file and never logged.
  *
  * <p>
  * Failures are classified for the caller (see {@link RegisterException#affectsWholeCycle()}), because they need
@@ -127,16 +128,18 @@ public class RegisterClient implements InitializingBean
 	private static final int MAX_ERROR_BODY_LENGTH = 500;
 
 	private final String apiUrl;
+	private final String importPath;
+	private final String bhz;
 	private final Path apiKeyFile;
 	private final Duration requestTimeout;
 
 	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper = new ObjectMapper();
-	private String apiKey;
+	private String apiKeyHeaderValue;
 
 	public RegisterClient(String apiUrl, String apiKeyFile)
 	{
-		this(apiUrl, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
+		this(apiUrl, IMPORT_PATH, null, apiKeyFile, DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT);
 	}
 
 	/**
@@ -148,7 +151,27 @@ public class RegisterClient implements InitializingBean
 	 */
 	public RegisterClient(String apiUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout)
 	{
+		this(apiUrl, IMPORT_PATH, null, apiKeyFile, connectTimeout, requestTimeout);
+	}
+
+	/**
+	 * @param importPath
+	 *            path below {@code apiUrl} that accepts collection Bundles, not blank
+	 * @param bhz
+	 *            site identity used to build the Base64-encoded {@code MEDIC-API-KEY} JSON together with the raw key
+	 *            file; blank preserves the legacy behavior where the file already contains the complete header value
+	 * @param connectTimeout
+	 *            how long to wait for the TCP/TLS connection, not <code>null</code>
+	 * @param requestTimeout
+	 *            how long to wait for the complete response; without it a hung register would block this cycle's BPE
+	 *            job thread indefinitely, not <code>null</code>
+	 */
+	public RegisterClient(String apiUrl, String importPath, String bhz, String apiKeyFile, Duration connectTimeout,
+			Duration requestTimeout)
+	{
 		this.apiUrl = apiUrl;
+		this.importPath = normalizedImportPath(importPath);
+		this.bhz = bhz == null ? null : bhz.trim();
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
 		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
 
@@ -162,10 +185,29 @@ public class RegisterClient implements InitializingBean
 		Objects.requireNonNull(apiUrl, "apiUrl");
 		Objects.requireNonNull(apiKeyFile, "apiKeyFile");
 
-		apiKey = Files.readString(apiKeyFile).trim();
+		String keyFileValue = Files.readString(apiKeyFile).trim();
 
-		if (apiKey.isEmpty())
+		if (keyFileValue.isEmpty())
 			throw new IllegalArgumentException("Register API key file '" + apiKeyFile + "' is empty");
+
+		if (bhz == null || bhz.isBlank())
+			apiKeyHeaderValue = keyFileValue;
+		else
+		{
+			byte[] authJson = objectMapper.createObjectNode().put("bhz", bhz).put("apiKey", keyFileValue).toString()
+					.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			apiKeyHeaderValue = Base64.getEncoder().encodeToString(authJson);
+		}
+	}
+
+	private static String normalizedImportPath(String importPath)
+	{
+		Objects.requireNonNull(importPath, "importPath");
+		String trimmed = importPath.trim();
+		if (trimmed.isEmpty())
+			throw new IllegalArgumentException("importPath is empty");
+
+		return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
 	}
 
 	/**
@@ -182,10 +224,10 @@ public class RegisterClient implements InitializingBean
 	 */
 	public RegisterAck send(String bundleJson)
 	{
-		URI uri = URI.create(apiUrl.replaceAll("/+$", "") + IMPORT_PATH);
+		URI uri = URI.create(apiUrl.replaceAll("/+$", "") + importPath);
 
 		HttpRequest request = HttpRequest.newBuilder(uri).header("Content-Type", "application/json")
-				.header("Accept", "application/json").header(API_KEY_HEADER, apiKey).timeout(requestTimeout)
+				.header("Accept", "application/json").header(API_KEY_HEADER, apiKeyHeaderValue).timeout(requestTimeout)
 				.POST(HttpRequest.BodyPublishers.ofString(bundleJson)).build();
 
 		HttpResponse<String> response;

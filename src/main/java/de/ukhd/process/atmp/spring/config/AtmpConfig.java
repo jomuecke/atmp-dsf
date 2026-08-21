@@ -28,12 +28,22 @@ public class AtmpConfig
 	private String fhirServerId;
 
 	@ProcessDocumentation(required = true, processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Base URL of the MEDIC / integrate-ATMP REST API, the process sends to {url}/api/medic-import", example = "https://medic-staging.dkfz.de")
+			"ukhdde_atmpDataTransfer" }, description = "Base URL of the MEDIC / integrate-ATMP REST API; the configured import path is appended without duplicating a trailing slash", example = "https://medic-staging.dkfz.de")
 	@Value("${de.ukhd.atmp.api.url:#{null}}")
 	private String apiUrl;
 
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "Path below the MEDIC / integrate-ATMP API base URL that accepts collection Bundles", example = "/medic-import")
+	@Value("${de.ukhd.atmp.api.import.path:/api/medic-import}")
+	private String apiImportPath;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "BHZ identity used with the raw register API key to construct the Base64 MEDIC-API-KEY header; leave empty only when the configured key file already contains the complete encoded header value", example = "bhz-demo")
+	@Value("${de.ukhd.atmp.api.bhz:}")
+	private String apiBhz;
+
 	@ProcessDocumentation(required = true, processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Location of a file (docker secret) containing the site's register API key, sent as MEDIC-API-KEY header", recommendation = "Use docker secret file to configure", example = "/run/secrets/atmp_medic_api_key")
+			"ukhdde_atmpDataTransfer" }, description = "Location of a docker-secret file containing the raw register API key when a BHZ is configured, or the complete encoded MEDIC-API-KEY header value in legacy mode", recommendation = "Configure a BHZ and store only the raw API key in this file", example = "/run/secrets/atmp_medic_api_key")
 	@Value("${de.ukhd.atmp.api.key.file:#{null}}")
 	private String apiKeyFile;
 
@@ -84,7 +94,7 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClient registerClient()
 	{
-		return new RegisterClient(apiUrl, apiKeyFile, Duration.parse(apiConnectTimeout),
+		return new RegisterClient(apiUrl, apiImportPath, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
 				Duration.parse(apiRequestTimeout));
 	}
 
