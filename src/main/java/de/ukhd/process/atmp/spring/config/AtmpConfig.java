@@ -17,6 +17,7 @@ import de.ukhd.process.atmp.service.QueryResearchSubjects;
 import de.ukhd.process.atmp.service.RejectDuplicateStart;
 import de.ukhd.process.atmp.service.SendToRegister;
 import de.ukhd.process.atmp.service.SetTimer;
+import dev.dsf.bpe.v2.ProcessPluginApi;
 import dev.dsf.bpe.v2.documentation.ProcessDocumentation;
 
 @Configuration
@@ -87,10 +88,10 @@ public class AtmpConfig
 
 	@Bean
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
-	public RegisterClient registerClient()
+	public RegisterClient registerClient(ProcessPluginApi api)
 	{
 		return new RegisterClient(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
-				Duration.parse(apiRequestTimeout));
+				Duration.parse(apiRequestTimeout), api.getProxyConfig());
 	}
 
 	@Bean
@@ -130,8 +131,8 @@ public class AtmpConfig
 
 	@Bean
 	@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-	public SendToRegister sendToRegister()
+	public SendToRegister sendToRegister(RegisterClient registerClient)
 	{
-		return new SendToRegister(registerClient());
+		return new SendToRegister(registerClient);
 	}
 }

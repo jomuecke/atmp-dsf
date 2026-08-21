@@ -6,7 +6,7 @@
 
 	<groupId>de.ukhd</groupId>
 	<artifactId>atmp-dsf</artifactId>
-	<version>1.0.0.2</version>
+	<version>1.0.0.3</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,6 +16,7 @@
 		<maven.compiler.release>25</maven.compiler.release>
 
 		<dsf.version>2.1.0</dsf.version>
+		<jersey.version>3.1.11</jersey.version>
 
 		<testSetup.location>../mii-processes-test-setup</testSetup.location>
 	</properties>
@@ -46,9 +47,22 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>de.medizininformatik-initiative</groupId>
-			<artifactId>mii-processes-common</artifactId>
-			<version>2.0.0.0</version>
+			<groupId>jakarta.ws.rs</groupId>
+			<artifactId>jakarta.ws.rs-api</artifactId>
+			<version>3.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-client</artifactId>
+			<version>${jersey.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.connectors</groupId>
+			<artifactId>jersey-apache-connector</artifactId>
+			<version>${jersey.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -101,34 +115,6 @@
 						</manifestEntries>
 					</archive>
 				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.6.2</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<artifactSet>
-								<includes>
-									<include>de.medizininformatik-initiative:mii-processes-common</include>
-								</includes>
-							</artifactSet>
-							<filters>
-								<filter>
-									<artifact>de.medizininformatik-initiative:mii-processes-common</artifact>
-									<excludes>
-										<exclude>META-INF/*.MF</exclude>
-									</excludes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -216,7 +202,7 @@
 	</build>
 
 	<repositories>
-		<!-- required to resolve dsf-* and mii-processes-common artifacts -->
+		<!-- required to resolve DSF artifacts -->
 		<repository>
 			<id>github-mii</id>
 			<name>GitHub Packages</name>
