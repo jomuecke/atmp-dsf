@@ -2,9 +2,6 @@ package de.ukhd.process.atmp.client;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -12,12 +9,25 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
+import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.client.RequestEntityProcessing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.dsf.bpe.v2.config.ProxyConfig;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * REST client for the external ATMP register (integrate-ATMP API). POSTs FHIR collection Bundles (JSON) to the exact
@@ -30,7 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * and should stop the cycle instead of producing one audit entry per subject, whereas a rejected bundle is specific to
  * the subject being sent and must not stop the others.
  */
-public class RegisterClient implements InitializingBean
+public class RegisterClient implements InitializingBean, DisposableBean
 {
 	/** Base class of the failures the register can produce, classified by blast radius. */
 	public abstract static class RegisterException extends RuntimeException
@@ -73,6 +83,21 @@ public class RegisterClient implements InitializingBean
 	public static class RegisterAuthException extends RegisterException
 	{
 		public RegisterAuthException(String message)
+		{
+			super(message, null);
+		}
+
+		@Override
+		public boolean affectsWholeCycle()
+		{
+			return true;
+		}
+	}
+
+	/** Thrown on HTTP 407: the DSF outbound proxy rejected its configured credentials. */
+	public static class RegisterProxyAuthException extends RegisterException
+	{
+		public RegisterProxyAuthException(String message)
 		{
 			super(message, null);
 		}
@@ -130,10 +155,12 @@ public class RegisterClient implements InitializingBean
 	private final URI importEndpoint;
 	private final String bhz;
 	private final Path apiKeyFile;
+	private final Duration connectTimeout;
 	private final Duration requestTimeout;
+	private final ProxyConfig proxyConfig;
 
-	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private Client httpClient;
 	private String apiKeyHeaderValue;
 
 	public RegisterClient(String importEndpointUrl, String apiKeyFile)
@@ -168,13 +195,28 @@ public class RegisterClient implements InitializingBean
 	public RegisterClient(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
 			Duration requestTimeout)
 	{
+		this(importEndpointUrl, bhz, apiKeyFile, connectTimeout, requestTimeout, null);
+	}
+
+	public RegisterClient(String importEndpointUrl, String apiKeyFile, Duration connectTimeout, Duration requestTimeout,
+			ProxyConfig proxyConfig)
+	{
+		this(importEndpointUrl, null, apiKeyFile, connectTimeout, requestTimeout, proxyConfig);
+	}
+
+	/**
+	 * @param proxyConfig
+	 *            DSF BPE proxy configuration, or <code>null</code> to always connect directly
+	 */
+	public RegisterClient(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
+			Duration requestTimeout, ProxyConfig proxyConfig)
+	{
 		this.importEndpoint = configuredEndpoint(importEndpointUrl);
 		this.bhz = bhz == null ? null : bhz.trim();
 		this.apiKeyFile = apiKeyFile == null ? null : Path.of(apiKeyFile);
+		this.connectTimeout = Objects.requireNonNull(connectTimeout, "connectTimeout");
 		this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
-
-		this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
-				.connectTimeout(Objects.requireNonNull(connectTimeout, "connectTimeout")).build();
+		this.proxyConfig = proxyConfig;
 	}
 
 	@Override
@@ -195,6 +237,47 @@ public class RegisterClient implements InitializingBean
 					.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 			apiKeyHeaderValue = Base64.getEncoder().encodeToString(authJson);
 		}
+
+		httpClient = createHttpClient();
+	}
+
+	private Client createHttpClient()
+	{
+		ClientConfig clientConfig = new ClientConfig().connectorProvider(new ApacheConnectorProvider())
+				.property(ClientProperties.CONNECT_TIMEOUT, timeoutMilliseconds(connectTimeout, "connectTimeout"))
+				.property(ClientProperties.READ_TIMEOUT, timeoutMilliseconds(requestTimeout, "requestTimeout"))
+				// A proxy may issue a 407 challenge. Buffering keeps this POST body repeatable for the authenticated
+				// retry.
+				.property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED);
+
+		boolean proxyEnabled = proxyConfig != null && proxyConfig.isEnabled(importEndpoint.toString());
+		if (proxyEnabled)
+		{
+			clientConfig.property(ClientProperties.PROXY_URI, proxyConfig.getUrl());
+			clientConfig.property(ClientProperties.PROXY_USERNAME, proxyConfig.getUsername());
+			clientConfig.property(ClientProperties.PROXY_PASSWORD,
+					proxyConfig.getPassword() == null ? null : String.valueOf(proxyConfig.getPassword()));
+		}
+
+		logger.info("Register API client configured for endpoint '{}' with DSF outbound proxy {}", importEndpoint,
+				proxyEnabled ? "enabled" : "disabled");
+		return ClientBuilder.newBuilder().withConfig(clientConfig).build();
+	}
+
+	private static int timeoutMilliseconds(Duration timeout, String name)
+	{
+		long milliseconds = timeout.toMillis();
+		if (milliseconds <= 0 || milliseconds > Integer.MAX_VALUE)
+			throw new IllegalArgumentException(name + " must be between PT0.001S and PT596H");
+
+		return (int) milliseconds;
+	}
+
+	@Override
+	public void destroy() throws Exception
+	{
+		if (httpClient != null)
+			httpClient.close();
 	}
 
 	private static URI configuredEndpoint(String importEndpointUrl)
@@ -221,40 +304,45 @@ public class RegisterClient implements InitializingBean
 	 */
 	public RegisterAck send(String bundleJson)
 	{
-		HttpRequest request = HttpRequest.newBuilder(importEndpoint).header("Content-Type", "application/json")
-				.header("Accept", "application/json").header(API_KEY_HEADER, apiKeyHeaderValue).timeout(requestTimeout)
-				.POST(HttpRequest.BodyPublishers.ofString(bundleJson)).build();
+		Objects.requireNonNull(httpClient, "RegisterClient not initialized");
 
-		HttpResponse<String> response;
+		int status;
+		String body;
 		try
 		{
-			response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+			try (Response response = httpClient.target(importEndpoint).request(MediaType.APPLICATION_JSON_TYPE)
+					.header(API_KEY_HEADER, apiKeyHeaderValue)
+					.post(Entity.entity(bundleJson, MediaType.APPLICATION_JSON_TYPE)))
+			{
+				status = response.getStatus();
+				body = response.hasEntity() ? response.readEntity(String.class) : "";
+			}
 		}
-		catch (IOException | InterruptedException exception)
+		catch (ProcessingException exception)
 		{
-			if (exception instanceof InterruptedException)
-				Thread.currentThread().interrupt();
-
 			throw new RegisterUnreachableException(
 					"Could not reach register API at '" + importEndpoint + "': " + exception.getMessage(), exception);
 		}
 
-		int status = response.statusCode();
-
 		if (status == 401)
 			throw new RegisterAuthException("Register API at '" + importEndpoint + "' rejected the " + API_KEY_HEADER
-					+ " header (status 401): " + truncated(response.body())
+					+ " header (status 401): " + truncated(body)
 					+ " — E060 header missing, E061 unknown bhz, E062 wrong apiKey, E063 malformed header");
 
+		if (status == 407)
+			throw new RegisterProxyAuthException(
+					"DSF outbound proxy rejected its configured credentials while connecting to register API at '"
+							+ importEndpoint + "' (status 407): " + truncated(body));
+
 		if (status >= 500)
-			throw new RegisterUnavailableException("Register API at '" + importEndpoint + "' returned status " + status
-					+ ": " + truncated(response.body()));
+			throw new RegisterUnavailableException(
+					"Register API at '" + importEndpoint + "' returned status " + status + ": " + truncated(body));
 
 		if (status < 200 || status > 299)
 			throw new RegisterRejectedException("Register API at '" + importEndpoint
-					+ "' rejected the bundle with status " + status + ": " + truncated(response.body()), null);
+					+ "' rejected the bundle with status " + status + ": " + truncated(body), null);
 
-		RegisterAck ack = parseAck(importEndpoint, status, response.body());
+		RegisterAck ack = parseAck(importEndpoint, status, body);
 
 		if (ack.isFullyAccepted())
 			logger.info("Sent bundle to register API at '{}', status {}, fully accepted", importEndpoint, status);
