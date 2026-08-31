@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+	<!-- Lists are defensively copied in the compact record constructor. -->
+	<Match>
+		<Class name="de.ukhd.process.atmp.client.RegisterAck"/>
+		<Method name="&lt;init&gt;"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<Match>
+		<Class name="de.ukhd.process.atmp.client.RegisterAck"/>
+		<Method name="~(failures|parseIssues)"/>
+		<Bug pattern="EI_EXPOSE_REP"/>
+	</Match>
+
+	<!-- The rejected list is copied; the mutable FHIR Bundle is intentionally the transport value returned to callers. -->
+	<Match>
+		<Class name="de.ukhd.process.atmp.fhir.ObservationBundleFactory$SubjectBundle"/>
+		<Method name="&lt;init&gt;"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<Match>
+		<Class name="de.ukhd.process.atmp.fhir.ObservationBundleFactory$SubjectBundle"/>
+		<Method name="~(bundle|rejected)"/>
+		<Bug pattern="EI_EXPOSE_REP"/>
+	</Match>
+
+	<!-- The configured code list is defensively copied by the constructor. -->
+	<Match>
+		<Class name="de.ukhd.process.atmp.service.CreateSubjectBundle"/>
+		<Method name="&lt;init&gt;"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+</FindBugsFilter>

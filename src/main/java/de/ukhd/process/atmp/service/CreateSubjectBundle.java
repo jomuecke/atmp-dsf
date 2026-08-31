@@ -46,7 +46,7 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 			ObservationBundleFactory observationBundleFactory)
 	{
 		this.fhirServerId = fhirServerId;
-		this.loincCodes = loincCodes;
+		this.loincCodes = List.copyOf(Objects.requireNonNull(loincCodes, "loincCodes"));
 		this.observationBundleFactory = observationBundleFactory;
 	}
 
@@ -54,7 +54,6 @@ public class CreateSubjectBundle implements ServiceTask, InitializingBean
 	public void afterPropertiesSet() throws Exception
 	{
 		Objects.requireNonNull(fhirServerId, "fhirServerId");
-		Objects.requireNonNull(loincCodes, "loincCodes");
 		Objects.requireNonNull(observationBundleFactory, "observationBundleFactory");
 	}
 

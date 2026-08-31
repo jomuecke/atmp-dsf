@@ -96,22 +96,17 @@ public class SendToRegister implements ServiceTask, InitializingBean
 			// (bulk-on-first-sight).
 			markSeen(variables, pseudonym);
 		}
-		catch (RegisterClient.RegisterException exception)
+		catch (RegisterClient.RegisterCycleException exception)
 		{
-			if (exception.affectsWholeCycle())
-			{
-				// Whole-cycle failure (Issue D): the register is unreachable, unhealthy, or rejecting our API key — it
-				// fails identically for every subject, not just this one. Audit once, mark the cycle aborted so the
-				// remaining subjects are skipped quietly, and keep the watermark from advancing next cycle. The loop
-				// itself survives and retries on the next interval.
-				logger.warn("Register not usable for this cycle, aborting the remaining subjects: {}",
-						exception.getMessage(), exception);
-				AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
-				variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
-				unmarkSeen(variables, pseudonym);
-			}
-			else
-				auditSubjectFailure(api, variables, subject, exception);
+			// Whole-cycle failure (Issue D): the register is unreachable, unhealthy, or rejecting our API key — it
+			// fails identically for every subject, not just this one. Audit once, mark the cycle aborted so the
+			// remaining subjects are skipped quietly, and keep the watermark from advancing next cycle. The loop
+			// itself survives and retries on the next interval.
+			logger.warn("Register not usable for this cycle, aborting the remaining subjects: {}",
+					exception.getMessage(), exception);
+			AuditLog.appendError(api, variables, AuditLog.cycleError(exception, Instant.now()));
+			variables.setBoolean(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED, true);
+			unmarkSeen(variables, pseudonym);
 		}
 		catch (Exception exception)
 		{

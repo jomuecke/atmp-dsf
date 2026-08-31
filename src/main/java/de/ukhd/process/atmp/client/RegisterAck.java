@@ -16,6 +16,12 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 public record RegisterAck(boolean success, List<Failure> failures, List<String> parseIssues)
 {
+	public RegisterAck
+	{
+		failures = List.copyOf(failures);
+		parseIssues = List.copyOf(parseIssues);
+	}
+
 	/**
 	 * @param canBeSkippedAsError
 	 *            {@code true} for a failure the register considers tolerable — in practice an unknown PID, i.e. a
@@ -57,7 +63,7 @@ public record RegisterAck(boolean success, List<Failure> failures, List<String> 
 		if (body.has("parseIssues") && body.get("parseIssues").isArray())
 			body.get("parseIssues").forEach(i -> parseIssues.add(i.toString()));
 
-		return new RegisterAck(success, List.copyOf(failures), List.copyOf(parseIssues));
+		return new RegisterAck(success, failures, parseIssues);
 	}
 
 	private static RegisterAck fromDizEntries(JsonNode entries)
@@ -87,7 +93,7 @@ public record RegisterAck(boolean success, List<Failure> failures, List<String> 
 			}
 		});
 
-		return new RegisterAck(true, List.copyOf(failures), List.copyOf(parseIssues));
+		return new RegisterAck(true, failures, parseIssues);
 	}
 
 	/** {@code true} only if the register reported no problem at all with any entry. */

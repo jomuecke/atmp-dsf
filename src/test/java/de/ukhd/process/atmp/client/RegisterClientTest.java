@@ -37,27 +37,26 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-proxy-auth-failure", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, true, "wrong-password"));
-			client.afterPropertiesSet();
-
-			try
+			try (RegisterClientJersey client = new RegisterClientJersey("http://register.invalid/medic-import", null,
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
+					proxyConfig(proxy, true, "wrong-password")))
 			{
-				client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
-				fail("expected a proxy authentication failure");
-			}
-			catch (RegisterClient.RegisterProxyAuthException exception)
-			{
-				assertTrue(exception.affectsWholeCycle());
+				try
+				{
+					client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
+					fail("expected a proxy authentication failure");
+				}
+				catch (RegisterClient.RegisterCycleException exception)
+				{
+					assertTrue(exception.getMessage().contains("status 407"));
+				}
 			}
 		}
 		finally
 		{
-			close(client);
 			proxy.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -94,23 +93,22 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-proxy-api-key", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			client = new RegisterClient("http://register.invalid/medic-import", apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, true, "proxy-password"));
-			client.afterPropertiesSet();
-
-			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
-			assertTrue("proxy should receive the unauthenticated challenge and authenticated retry",
-					requests.get() >= 2);
-			assertEquals(expectedProxyAuthorization, proxyAuthorization.get());
-			assertEquals("http://register.invalid/medic-import", requestedUri.get());
+			try (RegisterClientJersey client = new RegisterClientJersey("http://register.invalid/medic-import", null,
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
+					proxyConfig(proxy, true, "proxy-password")))
+			{
+				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
+				assertTrue("proxy should receive the unauthenticated challenge and authenticated retry",
+						requests.get() >= 2);
+				assertEquals(expectedProxyAuthorization, proxyAuthorization.get());
+				assertEquals("http://register.invalid/medic-import", requestedUri.get());
+			}
 		}
 		finally
 		{
-			close(client);
 			proxy.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -142,22 +140,20 @@ public class RegisterClientTest
 		proxy.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-no-proxy-api-key", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
 			String endpoint = "http://127.0.0.1:" + target.getAddress().getPort() + "/medic-import";
-			client = new RegisterClient(endpoint, apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
-					proxyConfig(proxy, false, "proxy-password"));
-			client.afterPropertiesSet();
-
-			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
-			assertEquals(1, targetRequests.get());
-			assertEquals("DSF no-proxy decision must be respected", 0, proxyRequests.get());
+			try (RegisterClientJersey client = new RegisterClientJersey(endpoint, null, apiKeyFile.toString(),
+					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, false, "proxy-password")))
+			{
+				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
+				assertEquals(1, targetRequests.get());
+				assertEquals("DSF no-proxy decision must be respected", 0, proxyRequests.get());
+			}
 		}
 		finally
 		{
-			close(client);
 			proxy.stop(0);
 			target.stop(0);
 			Files.deleteIfExists(apiKeyFile);
@@ -171,7 +167,7 @@ public class RegisterClientTest
 			@Override
 			public String getUrl()
 			{
-				return "http://127.0.0.1:" + proxy.getAddress().getPort();
+				return proxy == null ? null : "http://127.0.0.1:" + proxy.getAddress().getPort();
 			}
 
 			@Override
@@ -189,13 +185,13 @@ public class RegisterClientTest
 			@Override
 			public String getUsername()
 			{
-				return "proxy-user";
+				return password == null ? null : "proxy-user";
 			}
 
 			@Override
 			public char[] getPassword()
 			{
-				return password.toCharArray();
+				return password == null ? null : password.toCharArray();
 			}
 
 			@Override
@@ -212,6 +208,11 @@ public class RegisterClientTest
 		};
 	}
 
+	private ProxyConfig directConnection()
+	{
+		return proxyConfig(null, false, null);
+	}
+
 	@Test
 	public void testSendUsesExactConfiguredEndpointAndBuildsHeaderFromBhzAndRawKey() throws Exception
 	{
@@ -222,7 +223,7 @@ public class RegisterClientTest
 		server.createContext("/medic-import", exchange ->
 		{
 			path.set(exchange.getRequestURI().getPath());
-			apiKeyHeader.set(exchange.getRequestHeaders().getFirst(RegisterClient.API_KEY_HEADER));
+			apiKeyHeader.set(exchange.getRequestHeaders().getFirst(RegisterClientJersey.API_KEY_HEADER));
 			exchange.sendResponseHeaders(201, accepted.length);
 			exchange.getResponseBody().write(accepted);
 			exchange.close();
@@ -230,21 +231,20 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-raw-api-key", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "  test-secret\n");
-			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import",
-					"test-bhz", apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
-			client.afterPropertiesSet();
-
-			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
-			assertEquals("/medic-import", path.get());
-			assertEquals("eyJiaHoiOiJ0ZXN0LWJoeiIsImFwaUtleSI6InRlc3Qtc2VjcmV0In0=", apiKeyHeader.get());
+			try (RegisterClientJersey client = new RegisterClientJersey(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", "test-bhz",
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+			{
+				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
+				assertEquals("/medic-import", path.get());
+				assertEquals("eyJiaHoiOiJ0ZXN0LWJoeiIsImFwaUtleSI6InRlc3Qtc2VjcmV0In0=", apiKeyHeader.get());
+			}
 		}
 		finally
 		{
-			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -281,22 +281,21 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-api-key", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "test-key");
-			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import",
-					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
-			client.afterPropertiesSet();
+			try (RegisterClientJersey client = new RegisterClientJersey(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+			{
+				RegisterAck ack = client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
 
-			RegisterAck ack = client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
-
-			assertFalse(ack.isFullyAccepted());
-			assertFalse(ack.parseIssues().isEmpty());
+				assertFalse(ack.isFullyAccepted());
+				assertFalse(ack.parseIssues().isEmpty());
+			}
 		}
 		finally
 		{
-			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
@@ -316,7 +315,7 @@ public class RegisterClientTest
 			method.set(exchange.getRequestMethod());
 			path.set(exchange.getRequestURI().getPath());
 			contentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
-			apiKey.set(exchange.getRequestHeaders().getFirst(RegisterClient.API_KEY_HEADER));
+			apiKey.set(exchange.getRequestHeaders().getFirst(RegisterClientJersey.API_KEY_HEADER));
 			boolean cleartextHttp2Upgrade = "h2c".equalsIgnoreCase(exchange.getRequestHeaders().getFirst("Upgrade"));
 			byte[] response = cleartextHttp2Upgrade ? new byte[0] : accepted;
 			exchange.sendResponseHeaders(cleartextHttp2Upgrade ? 404 : 201, response.length);
@@ -326,31 +325,24 @@ public class RegisterClientTest
 		server.start();
 
 		Path apiKeyFile = Files.createTempFile("atmp-register-api-key", ".txt");
-		RegisterClient client = null;
 		try
 		{
 			Files.writeString(apiKeyFile, "  test-key\n");
-			client = new RegisterClient("http://127.0.0.1:" + server.getAddress().getPort() + "/api/medic-import",
-					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2));
-			client.afterPropertiesSet();
-
-			assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
-			assertEquals("POST", method.get());
-			assertEquals("/api/medic-import", path.get());
-			assertEquals("application/json", contentType.get());
-			assertEquals("test-key", apiKey.get());
+			try (RegisterClientJersey client = new RegisterClientJersey(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/api/medic-import", null,
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+			{
+				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
+				assertEquals("POST", method.get());
+				assertEquals("/api/medic-import", path.get());
+				assertEquals("application/json", contentType.get());
+				assertEquals("test-key", apiKey.get());
+			}
 		}
 		finally
 		{
-			close(client);
 			server.stop(0);
 			Files.deleteIfExists(apiKeyFile);
 		}
-	}
-
-	private void close(RegisterClient client) throws Exception
-	{
-		if (client != null)
-			client.destroy();
 	}
 }

@@ -1,5 +1,6 @@
 package de.ukhd.process.atmp.spring.config;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 
 import de.ukhd.process.atmp.client.RegisterClient;
+import de.ukhd.process.atmp.client.RegisterClientJersey;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.service.CreateSubjectBundle;
 import de.ukhd.process.atmp.service.QueryResearchSubjects;
@@ -86,11 +88,11 @@ public class AtmpConfig
 		return Arrays.stream(loincCodes.split(",")).map(String::trim).filter(c -> !c.isEmpty()).toList();
 	}
 
-	@Bean
+	@Bean(destroyMethod = "close")
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
-	public RegisterClient registerClient(ProcessPluginApi api)
+	public RegisterClientJersey registerClient(ProcessPluginApi api) throws IOException
 	{
-		return new RegisterClient(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
+		return new RegisterClientJersey(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
 				Duration.parse(apiRequestTimeout), api.getProxyConfig());
 	}
 
