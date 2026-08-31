@@ -10,3 +10,6 @@ docs/
 CLAUDE.md
 AGENTS.md
 ZUser- Medic.postman_collection.json
+
+# Local ATMP access-list data (may contain sensitive identifiers)
+test/ressources/atmp_accesslist_for_bundle_tool.csv
