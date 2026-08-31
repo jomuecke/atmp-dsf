@@ -37,7 +37,7 @@ public class SendToRegisterTest
 	private static final String SUBJECT_ENTRY = "Patient/local-patient-1"
 			+ ConstantsAtmp.RESEARCH_SUBJECT_ENTRY_SEPARATOR + PSEUDONYM;
 
-	private static class FailingRegisterClient extends RegisterClient
+	private static class FailingRegisterClient implements RegisterClient
 	{
 		private final RuntimeException failure;
 		private final RegisterAck ack;
@@ -50,7 +50,6 @@ public class SendToRegisterTest
 
 		FailingRegisterClient(RuntimeException failure, RegisterAck ack)
 		{
-			super("http://register.test", "unused");
 			this.failure = failure;
 			this.ack = ack;
 		}
@@ -118,8 +117,9 @@ public class SendToRegisterTest
 	{
 		store.put(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_SEEN_SUBJECTS, new ArrayList<>(List.of(PSEUDONYM)));
 
-		new SendToRegister(new FailingRegisterClient(new RegisterClient.RegisterUnreachableException(
-				"Could not reach register API", new RuntimeException()))).execute(api(), variables());
+		new SendToRegister(new FailingRegisterClient(
+				new RegisterClient.RegisterCycleException("Could not reach register API", new RuntimeException())))
+				.execute(api(), variables());
 
 		assertTrue(Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));
 		assertFalse(seenSubjects().contains(PSEUDONYM));
@@ -165,8 +165,8 @@ public class SendToRegisterTest
 	@Test
 	public void testAuthFailureAbortsCycleInsteadOfFailingEverySubjectSeparately() throws Exception
 	{
-		new SendToRegister(
-				new FailingRegisterClient(new RegisterClient.RegisterAuthException("status 401, E062 wrong apiKey")))
+		new SendToRegister(new FailingRegisterClient(
+				new RegisterClient.RegisterCycleException("status 401, E062 wrong apiKey", null)))
 				.execute(api(), variables());
 
 		assertTrue(Boolean.TRUE.equals((Boolean) store.get(ConstantsAtmp.BPMN_EXECUTION_VARIABLE_CYCLE_ABORTED)));

@@ -35,6 +35,7 @@ public class SetTimer implements ServiceTask, InitializingBean
 	}
 
 	@Override
+	@SuppressWarnings("PMD.UselessPureMethodCall") // Parsing is the validation performed during bean initialization
 	public void afterPropertiesSet() throws Exception
 	{
 		Objects.requireNonNull(defaultTimerInterval, "defaultTimerInterval");
@@ -69,6 +70,7 @@ public class SetTimer implements ServiceTask, InitializingBean
 		logger.info("ATMP data transfer timer interval set to '{}'", timerInterval);
 	}
 
+	@SuppressWarnings("PMD.UselessPureMethodCall") // Successful parsing is the condition being tested
 	private boolean isParseable(String timerInterval)
 	{
 		try

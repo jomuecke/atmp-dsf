@@ -69,6 +69,11 @@ public class ObservationBundleFactory
 	 */
 	public record SubjectBundle(Bundle bundle, List<RejectedObservation> rejected)
 	{
+		public SubjectBundle
+		{
+			Objects.requireNonNull(bundle, "bundle");
+			rejected = List.copyOf(rejected);
+		}
 	}
 
 	public static final String LOINC_SYSTEM = "http://loinc.org";
@@ -184,7 +189,7 @@ public class ObservationBundleFactory
 				bundle.addEntry().setResource(minimized);
 		}
 
-		return new SubjectBundle(bundle, List.copyOf(rejected));
+		return new SubjectBundle(bundle, rejected);
 	}
 
 	private boolean isSelected(Observation observation)
