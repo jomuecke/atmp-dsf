@@ -302,6 +302,91 @@ public class RegisterClientTest
 	}
 
 	@Test
+	public void testForbiddenAffectsWholeCycle() throws Exception
+	{
+		HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		server.createContext("/medic-import", exchange ->
+		{
+			byte[] body = "forbidden".getBytes(StandardCharsets.UTF_8);
+			exchange.sendResponseHeaders(403, body.length);
+			exchange.getResponseBody().write(body);
+			exchange.close();
+		});
+		server.start();
+
+		Path apiKeyFile = Files.createTempFile("atmp-register-forbidden", ".txt");
+		try
+		{
+			Files.writeString(apiKeyFile, "test-key");
+			try (RegisterClientJersey client = new RegisterClientJersey(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+			{
+				try
+				{
+					client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
+					fail("expected a register-wide authorization failure");
+				}
+				catch (RegisterClient.RegisterCycleException exception)
+				{
+					assertTrue(exception.getMessage().contains("status 403"));
+				}
+			}
+		}
+		finally
+		{
+			server.stop(0);
+			Files.deleteIfExists(apiKeyFile);
+		}
+	}
+
+	@Test
+	public void testRedirectIsNotFollowedAndAffectsWholeCycle() throws Exception
+	{
+		AtomicInteger redirectedRequests = new AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		server.createContext("/medic-import", exchange ->
+		{
+			exchange.getResponseHeaders().add("Location", "/elsewhere");
+			exchange.sendResponseHeaders(307, -1);
+			exchange.close();
+		});
+		server.createContext("/elsewhere", exchange ->
+		{
+			redirectedRequests.incrementAndGet();
+			exchange.sendResponseHeaders(201, -1);
+			exchange.close();
+		});
+		server.start();
+
+		Path apiKeyFile = Files.createTempFile("atmp-register-redirect", ".txt");
+		try
+		{
+			Files.writeString(apiKeyFile, "test-key");
+			try (RegisterClientJersey client = new RegisterClientJersey(
+					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+			{
+				try
+				{
+					client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
+					fail("expected a redirect to fail the cycle");
+				}
+				catch (RegisterClient.RegisterCycleException exception)
+				{
+					assertTrue(exception.getMessage().contains("status 307"));
+				}
+				assertEquals(0, redirectedRequests.get());
+			}
+		}
+		finally
+		{
+			server.stop(0);
+			Files.deleteIfExists(apiKeyFile);
+		}
+	}
+
+	@Test
 	public void testSendUsesRequiredHttpContractWithoutCleartextHttp2Upgrade() throws Exception
 	{
 		byte[] accepted = "{\"success\":true,\"failures\":[],\"parseIssues\":[]}".getBytes(StandardCharsets.UTF_8);

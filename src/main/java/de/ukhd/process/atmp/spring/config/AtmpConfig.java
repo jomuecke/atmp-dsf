@@ -5,6 +5,8 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.net.ssl.SSLContext;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +15,7 @@ import org.springframework.context.annotation.Scope;
 
 import de.ukhd.process.atmp.client.RegisterClient;
 import de.ukhd.process.atmp.client.RegisterClientJersey;
+import de.ukhd.process.atmp.client.RegisterMtlsConfig;
 import de.ukhd.process.atmp.fhir.ObservationBundleFactory;
 import de.ukhd.process.atmp.service.CreateSubjectBundle;
 import de.ukhd.process.atmp.service.QueryResearchSubjects;
@@ -44,6 +47,31 @@ public class AtmpConfig
 			"ukhdde_atmpDataTransfer" }, description = "Location of a docker-secret file containing the raw register API key when a BHZ is configured, or the complete encoded MEDIC-API-KEY header value in legacy mode", recommendation = "Configure a BHZ and store only the raw API key in this file", example = "/run/secrets/atmp_medic_api_key")
 	@Value("${de.ukhd.atmp.api.key.file:#{null}}")
 	private String apiKeyFile;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "Enables mutual TLS (client certificate) for the register connection in addition to the MEDIC-API-KEY header; requires an https register URL and the mTLS certificate chain, private key and trusted server CA files", recommendation = "Use a dedicated ATMP client certificate per site, not the DSF peer certificate", example = "true")
+	@Value("${de.ukhd.atmp.api.mtls.enabled:false}")
+	private boolean mtlsEnabled;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the ATMP client certificate followed by its intermediate CA certificates; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_client_certificate.pem")
+	@Value("${de.ukhd.atmp.api.mtls.certificate.chain.file:#{null}}")
+	private String mtlsCertificateChainFile;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the private key of the ATMP client certificate; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_client_certificate_private_key.pem")
+	@Value("${de.ukhd.atmp.api.mtls.private.key.file:#{null}}")
+	private String mtlsPrivateKeyFile;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "Secret file with the password of an encrypted mTLS private key; one terminal line ending is ignored, all other characters are part of the password", example = "/run/secrets/atmp_register_client_certificate_private_key.pem.password")
+	@Value("${de.ukhd.atmp.api.mtls.private.key.password.file:#{null}}")
+	private String mtlsPrivateKeyPasswordFile;
+
+	@ProcessDocumentation(processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the CA certificates trusted to issue the register server certificate; replaces the JVM default trust for the register connection; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_server_ca.pem")
+	@Value("${de.ukhd.atmp.api.mtls.trusted.server.cas.file:#{null}}")
+	private String mtlsTrustedServerCasFile;
 
 	@ProcessDocumentation(required = true, processNames = {
 			"ukhdde_atmpDataTransfer" }, description = "Comma-separated list of LOINC codes of the laboratory Observations to transfer", example = "718-7,26464-8")
@@ -92,8 +120,12 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClientJersey registerClient(ProcessPluginApi api) throws IOException
 	{
+		SSLContext mtlsContext = new RegisterMtlsConfig(mtlsEnabled, mtlsCertificateChainFile, mtlsPrivateKeyFile,
+				mtlsPrivateKeyPasswordFile, mtlsTrustedServerCasFile)
+				.createSslContext(api.getCryptoService(), importEndpointUrl).orElse(null);
+
 		return new RegisterClientJersey(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
-				Duration.parse(apiRequestTimeout), api.getProxyConfig());
+				Duration.parse(apiRequestTimeout), api.getProxyConfig(), mtlsContext);
 	}
 
 	@Bean

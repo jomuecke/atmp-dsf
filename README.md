@@ -54,6 +54,11 @@ to deployment configuration.
 | `de.ukhd.atmp.study.identifier.value` | no | `ATMP` | Identifier value of the local ATMP ResearchStudy. |
 | `de.ukhd.atmp.timer.interval` | no | `PT1H` | Default interval between transfer cycles. |
 | `de.ukhd.atmp.watermark.buffer` | no | `PT1M` | Overlap subtracted from incremental-query watermarks to absorb clock skew. |
+| `de.ukhd.atmp.api.mtls.enabled` | no | `false` | Present a client certificate (mTLS) to the register in addition to the API key. |
+| `de.ukhd.atmp.api.mtls.certificate.chain.file` | if mTLS | — | PEM client certificate followed by its intermediates. |
+| `de.ukhd.atmp.api.mtls.private.key.file` | if mTLS | — | PEM private key of the client certificate. |
+| `de.ukhd.atmp.api.mtls.private.key.password.file` | no | — | Secret file with the password of an encrypted private key. |
+| `de.ukhd.atmp.api.mtls.trusted.server.cas.file` | if mTLS | — | PEM CA certificates trusted for the register server certificate. |
 
 When a BHZ is configured, the key file contains only the raw secret. The plugin constructs and Base64-encodes the
 following JSON as the `MEDIC-API-KEY` value:
@@ -63,6 +68,27 @@ following JSON as the `MEDIC-API-KEY` value:
 ```
 
 Outbound requests automatically use the DSF proxy configuration when it is enabled for the register endpoint.
+Redirects from the register endpoint are not followed; configure the final import URL.
+
+### Client certificate (mTLS)
+
+Optional mutual TLS adds a certificate gate in front of the register. The `MEDIC-API-KEY` header and its BHZ
+authorization are unchanged: in mTLS deployments the register ingress checks the certificate and the register checks
+the API key independently. A permitted certificate does not select or restrict the BHZ.
+
+- Use a dedicated ATMP client certificate per site, not the DSF peer certificate. Enrollment, renewal and revocation
+  are agreed with the register operator.
+- mTLS requires an `https` register URL. The configured server CA file replaces the JVM default trust for the
+  register connection; hostname verification stays on.
+- Credentials are loaded and validated at BPE startup: unreadable files, a key not matching the certificate, an
+  expired or CA certificate as client leaf, or a certificate without TLS client usage (when extended key usage is
+  present) stop the plugin from starting. Setting mTLS file properties while `enabled` is `false` is also an error.
+- The password file is read as UTF-8; one terminal line ending is removed, every other character is part of the
+  password.
+- After certificate renewal, restart the BPE. The running transfer loop resumes from its persisted state.
+- TLS failures, HTTP 401 and HTTP 403 abort the current cycle without advancing the watermark; the next cycle retries.
+- A forward proxy must allow HTTPS `CONNECT` to the register without TLS interception.
+- Disabling mTLS does not restore access to an ingress that requires certificates; there is no automatic fallback.
 
 ## Operation
 
