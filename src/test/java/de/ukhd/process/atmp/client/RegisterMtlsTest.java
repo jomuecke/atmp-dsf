@@ -109,6 +109,14 @@ public class RegisterMtlsTest
 	}
 
 	@Test
+	public void testExpiredServerCertificateFailsCycleBeforeImport() throws Exception
+	{
+		startRegister(serverPki.server(Duration.ofDays(-1), "localhost"), clientPki.caCertificate());
+
+		assertCycleFailure(clientPki.client("dic1-atmp"), "server certificate");
+	}
+
+	@Test
 	public void testClientCertificateNotTrustedByRegisterFailsCycleBeforeImport() throws Exception
 	{
 		startRegister(serverPki.server("localhost"), clientPki.caCertificate());

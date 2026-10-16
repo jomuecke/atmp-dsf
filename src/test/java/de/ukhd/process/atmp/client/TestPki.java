@@ -43,6 +43,12 @@ final class TestPki
 		return new Identity(ca.signServerCertificate(request), request.getPrivateKey(), ca.getCertificate());
 	}
 
+	Identity server(TemporalAmount validity, String... dnsNames)
+	{
+		CertificationRequestAndPrivateKey request = request("register").setDnsNames(dnsNames).build();
+		return new Identity(ca.signServerCertificate(request, validity), request.getPrivateKey(), ca.getCertificate());
+	}
+
 	Identity client(String name)
 	{
 		CertificationRequestAndPrivateKey request = request(name).build();

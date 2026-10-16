@@ -76,6 +76,8 @@ Optional mutual TLS adds a certificate gate in front of the register. The `MEDIC
 authorization are unchanged: in mTLS deployments the register ingress checks the certificate and the register checks
 the API key independently. A permitted certificate does not select or restrict the BHZ.
 
+- The register ingress terminates TLS and can read the request; protection of its onward connection to the register
+  application is the register operator's responsibility.
 - Use a dedicated ATMP client certificate per site, not the DSF peer certificate. Enrollment, renewal and revocation
   are agreed with the register operator.
 - mTLS requires an `https` register URL. The configured server CA file replaces the JVM default trust for the

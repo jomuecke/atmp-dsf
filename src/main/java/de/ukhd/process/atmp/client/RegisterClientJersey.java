@@ -1,6 +1,8 @@
 package de.ukhd.process.atmp.client;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -76,13 +78,6 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 		this.mtlsEnabled = mtlsContext != null;
 		this.httpClient = createHttpClient(importEndpoint, connectTimeout, requestTimeout,
 				Objects.requireNonNull(proxyConfig, "proxyConfig"), mtlsContext);
-	}
-
-	/** API-key-only register connection without a client certificate. */
-	public RegisterClientJersey(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
-			Duration requestTimeout, ProxyConfig proxyConfig) throws IOException
-	{
-		this(importEndpointUrl, bhz, apiKeyFile, connectTimeout, requestTimeout, proxyConfig, null);
 	}
 
 	private String apiKeyHeaderValue(String bhz, String apiKeyFile) throws IOException
@@ -221,11 +216,13 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 			if (cause instanceof SSLException)
 				return " — TLS connection failed: check the register server certificate trust and hostname"
 						+ (mtlsEnabled ? ", and that the register accepts this site's client certificate" : "");
+
+			// A register rejecting the client certificate after a TLS 1.3 handshake shows up as a broken connection
+			if (mtlsEnabled && cause instanceof SocketException && !(cause instanceof ConnectException))
+				return " — the register closed the connection; with mTLS this may mean it rejected the client certificate";
 		}
 
-		return mtlsEnabled
-				? " — with mTLS enabled, a connection closed by the register may mean it rejected the client certificate"
-				: "";
+		return "";
 	}
 
 	private RegisterAck parseAck(int httpStatus, String body)

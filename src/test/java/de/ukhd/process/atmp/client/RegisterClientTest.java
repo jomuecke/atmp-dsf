@@ -42,7 +42,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			try (RegisterClientJersey client = new RegisterClientJersey("http://register.invalid/medic-import", null,
 					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
-					proxyConfig(proxy, true, "wrong-password")))
+					proxyConfig(proxy, true, "wrong-password"), null))
 			{
 				try
 				{
@@ -98,7 +98,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			try (RegisterClientJersey client = new RegisterClientJersey("http://register.invalid/medic-import", null,
 					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2),
-					proxyConfig(proxy, true, "proxy-password")))
+					proxyConfig(proxy, true, "proxy-password"), null))
 			{
 				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
 				assertTrue("proxy should receive the unauthenticated challenge and authenticated retry",
@@ -145,7 +145,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			String endpoint = "http://127.0.0.1:" + target.getAddress().getPort() + "/medic-import";
 			try (RegisterClientJersey client = new RegisterClientJersey(endpoint, null, apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, false, "proxy-password")))
+					Duration.ofSeconds(2), Duration.ofSeconds(2), proxyConfig(proxy, false, "proxy-password"), null))
 			{
 				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
 				assertEquals(1, targetRequests.get());
@@ -236,7 +236,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "  test-secret\n");
 			try (RegisterClientJersey client = new RegisterClientJersey(
 					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", "test-bhz",
-					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection(), null))
 			{
 				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
 				assertEquals("/medic-import", path.get());
@@ -286,7 +286,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			try (RegisterClientJersey client = new RegisterClientJersey(
 					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection(), null))
 			{
 				RegisterAck ack = client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}");
 
@@ -320,7 +320,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			try (RegisterClientJersey client = new RegisterClientJersey(
 					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection(), null))
 			{
 				try
 				{
@@ -348,7 +348,7 @@ public class RegisterClientTest
 		server.createContext("/medic-import", exchange ->
 		{
 			exchange.getResponseHeaders().add("Location", "/elsewhere");
-			exchange.sendResponseHeaders(307, -1);
+			exchange.sendResponseHeaders(303, -1);
 			exchange.close();
 		});
 		server.createContext("/elsewhere", exchange ->
@@ -365,7 +365,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "test-key");
 			try (RegisterClientJersey client = new RegisterClientJersey(
 					"http://127.0.0.1:" + server.getAddress().getPort() + "/medic-import", null, apiKeyFile.toString(),
-					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+					Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection(), null))
 			{
 				try
 				{
@@ -374,7 +374,7 @@ public class RegisterClientTest
 				}
 				catch (RegisterClient.RegisterCycleException exception)
 				{
-					assertTrue(exception.getMessage().contains("status 307"));
+					assertTrue(exception.getMessage().contains("status 303"));
 				}
 				assertEquals(0, redirectedRequests.get());
 			}
@@ -415,7 +415,7 @@ public class RegisterClientTest
 			Files.writeString(apiKeyFile, "  test-key\n");
 			try (RegisterClientJersey client = new RegisterClientJersey(
 					"http://127.0.0.1:" + server.getAddress().getPort() + "/api/medic-import", null,
-					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection()))
+					apiKeyFile.toString(), Duration.ofSeconds(2), Duration.ofSeconds(2), directConnection(), null))
 			{
 				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
 				assertEquals("POST", method.get());
