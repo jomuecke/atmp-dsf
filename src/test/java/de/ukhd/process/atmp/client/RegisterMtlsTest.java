@@ -125,6 +125,14 @@ public class RegisterMtlsTest
 		assertCycleFailure(new TestPki("Unknown Client").client("dic1-atmp"), "client certificate");
 	}
 
+	@Test
+	public void testExpiredClientCertificateFailsCycleBeforeImport() throws Exception
+	{
+		startRegister(serverPki.server("localhost"), clientPki.caCertificate());
+
+		assertCycleFailure(clientPki.client("dic1-atmp", Duration.ofDays(-1)), "client certificate");
+	}
+
 	private void assertCycleFailure(Identity client, String expectedDiagnostic) throws IOException
 	{
 		try (RegisterClientJersey registerClient = client(mtls(client)))

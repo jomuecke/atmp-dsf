@@ -82,12 +82,17 @@ the API key independently. A permitted certificate does not select or restrict t
   are agreed with the register operator.
 - mTLS requires an `https` register URL. The configured server CA file replaces the JVM default trust for the
   register connection; hostname verification stays on.
-- Credentials are loaded and validated at BPE startup: unreadable files, a key not matching the certificate, an
-  expired or CA certificate as client leaf, or a certificate without TLS client usage (when extended key usage is
-  present) stop the plugin from starting. Setting mTLS file properties while `enabled` is `false` is also an error.
+- Credentials are loaded and validated at BPE startup: unreadable files, a key not matching the certificate, a CA
+  certificate as client leaf, or a certificate without TLS client usage (when extended key usage is present) stop the
+  plugin from starting. Setting mTLS file properties while `enabled` is `false` is also an error. DSF then terminates
+  running ATMP instances on that site; after fixing the configuration, submit a new start Task (full first cycle).
+- An expired or not-yet-valid client certificate does not stop the plugin: it logs an error at startup and the
+  register rejects it, so every cycle fails without advancing the watermark. A warning is logged at startup when the
+  certificate expires within 30 days.
 - The password file is read as UTF-8; one terminal line ending is removed, every other character is part of the
   password.
-- After certificate renewal, restart the BPE. The running transfer loop resumes from its persisted state.
+- After certificate renewal, restart the BPE. The running transfer loop resumes from its persisted state and sends
+  what changed during an outage.
 - TLS failures, HTTP 401 and HTTP 403 abort the current cycle without advancing the watermark; the next cycle retries.
 - A forward proxy must allow HTTPS `CONNECT` to the register without TLS interception.
 - Disabling mTLS does not restore access to an ingress that requires certificates; there is no automatic fallback.

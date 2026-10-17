@@ -16,7 +16,10 @@ import org.junit.rules.TemporaryFolder;
 
 import de.ukhd.process.atmp.client.TestPki.Identity;
 
-/** Startup validation of the register mTLS configuration: misconfiguration fails before the first transfer. */
+/**
+ * Startup validation of the register mTLS configuration: misconfiguration fails before the first transfer; certificate
+ * validity only warns, the register enforces it per cycle.
+ */
 public class RegisterMtlsConfigTest
 {
 	private static final String ENDPOINT = "https://register.example/api/medic-import";
@@ -95,15 +98,14 @@ public class RegisterMtlsConfigTest
 	}
 
 	@Test
-	public void testExpiredClientCertificateIsRejected() throws IOException
+	public void testExpiredClientCertificateLoadsSoTheRegisterRejectsCyclesInsteadOfStartup() throws IOException
 	{
 		Identity expired = pki.client("expired", Duration.ofDays(-1));
 		Path expiredDirectory = folder.newFolder().toPath();
 
-		assertInvalid(
-				new RegisterMtlsConfig(true, TestPki.writeChain(expiredDirectory, expired).toString(),
-						TestPki.writeKey(expiredDirectory, expired.privateKey()).toString(), null, serverCas),
-				ENDPOINT);
+		assertTrue(new RegisterMtlsConfig(true, TestPki.writeChain(expiredDirectory, expired).toString(),
+				TestPki.writeKey(expiredDirectory, expired.privateKey()).toString(), null, serverCas)
+				.createSslContext(crypto, ENDPOINT).isPresent());
 	}
 
 	@Test

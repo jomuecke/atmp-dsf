@@ -11,12 +11,17 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import dev.dsf.bpe.v2.service.CryptoService;
 
@@ -39,6 +44,9 @@ public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, S
 		String privateKeyPasswordFile, String trustedServerCasFile)
 {
 	public static final String PROPERTY_PREFIX = "de.ukhd.atmp.api.mtls.";
+
+	private static final Logger logger = LoggerFactory.getLogger(RegisterMtlsConfig.class);
+	private static final Duration EXPIRY_WARNING = Duration.ofDays(30);
 
 	/**
 	 * Validates the configuration and the credential files. Messages name properties and files, never their content.
@@ -221,18 +229,27 @@ public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, S
 			throw new IllegalArgumentException("Could not read extended key usage of the " + leafName, exception);
 		}
 
+		// Validity is time dependent, not a configuration mistake: failing startup would make DSF terminate running
+		// transfer instances on a routine restart. An expired identity is rejected by the register instead, which
+		// fails each cycle with the watermark kept until the certificate is renewed and the BPE restarted.
 		for (X509Certificate certificate : chain)
 		{
+			String certificateName = "'" + certificate.getSubjectX500Principal().getName() + "' in '" + chainFile + "'";
 			try
 			{
 				certificate.checkValidity();
 			}
 			catch (CertificateException exception)
 			{
-				throw new IllegalArgumentException("Certificate '" + certificate.getSubjectX500Principal().getName()
-						+ "' in '" + chainFile + "' is not currently valid (not before " + certificate.getNotBefore()
-						+ ", not after " + certificate.getNotAfter() + ")", exception);
+				logger.error(
+						"Register mTLS certificate {} is not currently valid (not before {}, not after {}); register cycles will fail until it is renewed and the BPE restarted",
+						certificateName, certificate.getNotBefore(), certificate.getNotAfter());
+				continue;
 			}
+
+			if (certificate.getNotAfter().toInstant().isBefore(Instant.now().plus(EXPIRY_WARNING)))
+				logger.warn("Register mTLS certificate {} expires {}; renew it and restart the BPE before then",
+						certificateName, certificate.getNotAfter());
 		}
 	}
 }
