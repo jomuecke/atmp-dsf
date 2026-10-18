@@ -44,7 +44,7 @@ to deployment configuration.
 | Property | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `de.ukhd.atmp.fhir.server.id` | yes | — | ID of the DSF-configured FHIR client for the local ATMP data store. |
-| `de.ukhd.atmp.api.url` | yes | — | Complete integrate-ATMP collection-Bundle endpoint URL. |
+| `de.ukhd.atmp.api.url` | yes | — | Complete integrate-ATMP collection-Bundle endpoint URL; must be https with a host. |
 | `de.ukhd.atmp.api.bhz` | recommended | empty | BHZ identity combined with the raw API key for the `MEDIC-API-KEY` header. |
 | `de.ukhd.atmp.api.key.file` | yes | — | Path to the mounted file containing the raw API key. If BHZ is empty, the file must contain the complete encoded header value. |
 | `de.ukhd.atmp.observation.loinc.codes` | yes | — | Comma-separated LOINC codes to transfer. |
@@ -54,11 +54,10 @@ to deployment configuration.
 | `de.ukhd.atmp.study.identifier.value` | no | `ATMP` | Identifier value of the local ATMP ResearchStudy. |
 | `de.ukhd.atmp.timer.interval` | no | `PT1H` | Default interval between transfer cycles. |
 | `de.ukhd.atmp.watermark.buffer` | no | `PT1M` | Overlap subtracted from incremental-query watermarks to absorb clock skew. |
-| `de.ukhd.atmp.api.mtls.enabled` | no | `false` | Present a client certificate (mTLS) to the register in addition to the API key. |
-| `de.ukhd.atmp.api.mtls.certificate.chain.file` | if mTLS | — | PEM client certificate followed by its intermediates. |
-| `de.ukhd.atmp.api.mtls.private.key.file` | if mTLS | — | PEM private key of the client certificate. |
+| `de.ukhd.atmp.api.mtls.certificate.chain.file` | yes | — | PEM client certificate followed by its intermediates. |
+| `de.ukhd.atmp.api.mtls.private.key.file` | yes | — | PEM private key of the client certificate. |
 | `de.ukhd.atmp.api.mtls.private.key.password.file` | no | — | Secret file with the password of an encrypted private key. |
-| `de.ukhd.atmp.api.mtls.trusted.server.cas.file` | if mTLS | — | PEM CA certificates trusted for the register server certificate. |
+| `de.ukhd.atmp.api.mtls.trusted.server.cas.file` | yes | — | PEM CA certificates trusted for the register server certificate. |
 
 When a BHZ is configured, the key file contains only the raw secret. The plugin constructs and Base64-encodes the
 following JSON as the `MEDIC-API-KEY` value:
@@ -72,8 +71,8 @@ Redirects from the register endpoint are not followed; configure the final impor
 
 ### Client certificate (mTLS)
 
-Optional mutual TLS adds a certificate gate in front of the register. The `MEDIC-API-KEY` header and its BHZ
-authorization are unchanged: in mTLS deployments the register ingress checks the certificate and the register checks
+Every register request uses HTTPS with a site client certificate. The `MEDIC-API-KEY` header and its BHZ
+authorization are unchanged: the register ingress checks the certificate and the register checks
 the API key independently. A permitted certificate does not select or restrict the BHZ.
 
 - The register ingress terminates TLS and can read the request; protection of its onward connection to the register
@@ -84,7 +83,7 @@ the API key independently. A permitted certificate does not select or restrict t
   register connection; hostname verification stays on.
 - Credentials are loaded and validated at BPE startup: unreadable files, a key not matching the certificate, a CA
   certificate as client leaf, or a certificate without TLS client usage (when extended key usage is present) stop the
-  plugin from starting. Setting mTLS file properties while `enabled` is `false` is also an error. DSF then terminates
+  plugin from starting. Missing certificate chain, private key or server CA files also stop startup. DSF then terminates
   running ATMP instances on that site; after fixing the configuration, submit a new start Task (full first cycle).
 - An expired or not-yet-valid client certificate does not stop the plugin: it logs an error at startup and the
   register rejects it, so every cycle fails without advancing the watermark. A warning is logged at startup when the
@@ -95,7 +94,10 @@ the API key independently. A permitted certificate does not select or restrict t
   what changed during an outage.
 - TLS failures, HTTP 401 and HTTP 403 abort the current cycle without advancing the watermark; the next cycle retries.
 - A forward proxy must allow HTTPS `CONNECT` to the register without TLS interception.
-- Disabling mTLS does not restore access to an ingress that requires certificates; there is no automatic fallback.
+
+Migration: 1.0.0.0 ran without client certificates; from 1.0.1.0 a client certificate is required and
+`DE_UKHD_ATMP_API_MTLS_ENABLED` must be removed. Startup rejects any value of the removed switch. Keep the other
+mTLS property and environment variable names unchanged.
 
 ## Operation
 

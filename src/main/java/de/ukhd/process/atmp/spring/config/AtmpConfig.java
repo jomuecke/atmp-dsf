@@ -34,7 +34,7 @@ public class AtmpConfig
 	private String fhirServerId;
 
 	@ProcessDocumentation(required = true, processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Complete URL of the MEDIC / integrate-ATMP endpoint that accepts collection Bundles; the process posts to this exact URL without appending a path", example = "https://medic-staging.dkfz.de/medic-import")
+			"ukhdde_atmpDataTransfer" }, description = "Complete URL of the MEDIC / integrate-ATMP endpoint that accepts collection Bundles; the process posts to this exact URL without appending a path; must be https", example = "https://medic-staging.dkfz.de/medic-import")
 	@Value("${de.ukhd.atmp.api.url:#{null}}")
 	private String importEndpointUrl;
 
@@ -48,18 +48,17 @@ public class AtmpConfig
 	@Value("${de.ukhd.atmp.api.key.file:#{null}}")
 	private String apiKeyFile;
 
-	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Enables mutual TLS (client certificate) for the register connection in addition to the MEDIC-API-KEY header; requires an https register URL and the mTLS certificate chain, private key and trusted server CA files", recommendation = "Use a dedicated ATMP client certificate per site, not the DSF peer certificate", example = "true")
-	@Value("${de.ukhd.atmp.api.mtls.enabled:false}")
-	private boolean mtlsEnabled;
+	// Migration guard; remove in a later minor release. Intentionally absent from generated documentation.
+	@Value("${de.ukhd.atmp.api.mtls.enabled:#{null}}")
+	private String removedMtlsEnabled;
 
-	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "PEM file with the ATMP client certificate followed by its intermediate CA certificates; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_client_certificate.pem")
+	@ProcessDocumentation(required = true, processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the site's ATMP client certificate followed by its intermediate CA certificates", example = "/run/secrets/atmp_register_client_certificate.pem")
 	@Value("${de.ukhd.atmp.api.mtls.certificate.chain.file:#{null}}")
 	private String mtlsCertificateChainFile;
 
-	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "PEM file with the private key of the ATMP client certificate; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_client_certificate_private_key.pem")
+	@ProcessDocumentation(required = true, processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the private key of the ATMP client certificate", example = "/run/secrets/atmp_register_client_certificate_private_key.pem")
 	@Value("${de.ukhd.atmp.api.mtls.private.key.file:#{null}}")
 	private String mtlsPrivateKeyFile;
 
@@ -68,8 +67,8 @@ public class AtmpConfig
 	@Value("${de.ukhd.atmp.api.mtls.private.key.password.file:#{null}}")
 	private String mtlsPrivateKeyPasswordFile;
 
-	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "PEM file with the CA certificates trusted to issue the register server certificate; replaces the JVM default trust for the register connection; required if mTLS is enabled, must not be set otherwise", example = "/run/secrets/atmp_register_server_ca.pem")
+	@ProcessDocumentation(required = true, processNames = {
+			"ukhdde_atmpDataTransfer" }, description = "PEM file with the CA certificates trusted to issue the register server certificate; replaces the JVM default trust for the register connection", example = "/run/secrets/atmp_register_server_ca.pem")
 	@Value("${de.ukhd.atmp.api.mtls.trusted.server.cas.file:#{null}}")
 	private String mtlsTrustedServerCasFile;
 
@@ -89,12 +88,12 @@ public class AtmpConfig
 	private String apiRequestTimeout;
 
 	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Identifier system of the ATMP ResearchStudy in the local FHIR store, leave empty to match by identifier value only")
+			"ukhdde_atmpDataTransfer" }, description = "Identifier system of the ATMP ResearchStudy in the local FHIR store, leave empty to match by identifier value only", example = "https://ukhd.de/fhir/sid/research-study")
 	@Value("${de.ukhd.atmp.study.identifier.system:}")
 	private String studyIdentifierSystem;
 
 	@ProcessDocumentation(processNames = {
-			"ukhdde_atmpDataTransfer" }, description = "Identifier value of the ATMP ResearchStudy in the local FHIR store")
+			"ukhdde_atmpDataTransfer" }, description = "Identifier value of the ATMP ResearchStudy in the local FHIR store", example = "ATMP")
 	@Value("${de.ukhd.atmp.study.identifier.value:ATMP}")
 	private String studyIdentifierValue;
 
@@ -120,9 +119,13 @@ public class AtmpConfig
 	@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 	public RegisterClientJersey registerClient(ProcessPluginApi api) throws IOException
 	{
-		SSLContext mtlsContext = new RegisterMtlsConfig(mtlsEnabled, mtlsCertificateChainFile, mtlsPrivateKeyFile,
+		if (removedMtlsEnabled != null)
+			throw new IllegalArgumentException(
+					"de.ukhd.atmp.api.mtls.enabled was removed; mTLS is mandatory, remove the property");
+
+		SSLContext mtlsContext = new RegisterMtlsConfig(mtlsCertificateChainFile, mtlsPrivateKeyFile,
 				mtlsPrivateKeyPasswordFile, mtlsTrustedServerCasFile)
-				.createSslContext(api.getCryptoService(), importEndpointUrl).orElse(null);
+				.createSslContext(api.getCryptoService(), importEndpointUrl);
 
 		return new RegisterClientJersey(importEndpointUrl, apiBhz, apiKeyFile, Duration.parse(apiConnectTimeout),
 				Duration.parse(apiRequestTimeout), api.getProxyConfig(), mtlsContext);

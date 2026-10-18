@@ -14,9 +14,7 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
@@ -26,22 +24,20 @@ import org.slf4j.LoggerFactory;
 import dev.dsf.bpe.v2.service.CryptoService;
 
 /**
- * Optional client-certificate (mTLS) configuration of the register connection. The certificate is an additional
- * transport gate; the {@code MEDIC-API-KEY} header is sent unchanged in both modes.
+ * Mandatory client-certificate (mTLS) configuration of the register connection. The certificate is an additional
+ * transport gate; the {@code MEDIC-API-KEY} header is sent unchanged on every request.
  *
- * @param enabled
- *            whether the register connection presents a client certificate
  * @param certificateChainFile
- *            PEM file with the client leaf certificate followed by its intermediates, required when enabled
+ *            PEM file with the client leaf certificate followed by its intermediates
  * @param privateKeyFile
- *            PEM file with the client private key, required when enabled
+ *            PEM file with the client private key
  * @param privateKeyPasswordFile
  *            secret file with the password of an encrypted private key; one terminal line ending is ignored
  * @param trustedServerCasFile
- *            PEM file with the CA certificates trusted for the register server, required when enabled
+ *            PEM file with the CA certificates trusted for the register server
  */
-public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, String privateKeyFile,
-		String privateKeyPasswordFile, String trustedServerCasFile)
+public record RegisterMtlsConfig(String certificateChainFile, String privateKeyFile, String privateKeyPasswordFile,
+		String trustedServerCasFile)
 {
 	public static final String PROPERTY_PREFIX = "de.ukhd.atmp.api.mtls.";
 
@@ -55,24 +51,12 @@ public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, S
 	 *            DSF crypto service, not {@code null}
 	 * @param importEndpointUrl
 	 *            configured register endpoint
-	 * @return the SSLContext presenting the configured client identity and trusting only the configured server CAs, or
-	 *         empty when mTLS is disabled
+	 * @return the SSLContext presenting the configured client identity and trusting only the configured server CAs
 	 * @throws IllegalArgumentException
 	 *             if the configuration is incomplete, inconsistent or the credential files are unusable
 	 */
-	public Optional<SSLContext> createSslContext(CryptoService crypto, String importEndpointUrl)
+	public SSLContext createSslContext(CryptoService crypto, String importEndpointUrl)
 	{
-		if (!enabled)
-		{
-			if (Stream.of(certificateChainFile, privateKeyFile, privateKeyPasswordFile, trustedServerCasFile)
-					.anyMatch(RegisterMtlsConfig::isSet))
-				throw new IllegalArgumentException(
-						"Register mTLS credential or trust properties are set but " + PROPERTY_PREFIX
-								+ "enabled is false; enable mTLS or remove the " + PROPERTY_PREFIX + "* properties");
-
-			return Optional.empty();
-		}
-
 		requireHttpsEndpoint(importEndpointUrl);
 		Path chainFile = requiredFile(certificateChainFile, "certificate.chain.file");
 		Path keyFile = requiredFile(privateKeyFile, "private.key.file");
@@ -92,7 +76,7 @@ public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, S
 		{
 			KeyStore keyStore = crypto.createKeyStoreForPrivateKeyAndCertificateChain(key, keyStorePassword, chain);
 			KeyStore trustStore = crypto.createKeyStoreForTrustedCertificates(trustedServerCas);
-			return Optional.of(crypto.createSSLContext(trustStore, keyStore, keyStorePassword));
+			return crypto.createSSLContext(trustStore, keyStore, keyStorePassword);
 		}
 		catch (GeneralSecurityException | RuntimeException exception)
 		{
@@ -128,8 +112,7 @@ public record RegisterMtlsConfig(boolean enabled, String certificateChainFile, S
 	private static Path requiredFile(String value, String property)
 	{
 		if (!isSet(value))
-			throw new IllegalArgumentException(
-					PROPERTY_PREFIX + property + " is required when register mTLS is enabled");
+			throw new IllegalArgumentException(PROPERTY_PREFIX + property + " is required");
 
 		Path file = Path.of(value.trim());
 		if (!Files.isRegularFile(file) || !Files.isReadable(file))

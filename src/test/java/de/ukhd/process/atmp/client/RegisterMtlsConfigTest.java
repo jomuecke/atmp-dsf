@@ -1,8 +1,8 @@
 package de.ukhd.process.atmp.client;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,38 +46,46 @@ public class RegisterMtlsConfigTest
 	}
 
 	@Test
-	public void testDisabledWithoutCredentialsKeepsDefaultTls()
+	public void testRequiresHttpsEndpointWithHost()
 	{
-		assertFalse(
-				new RegisterMtlsConfig(false, null, " ", null, null).createSslContext(crypto, ENDPOINT).isPresent());
-	}
+		RegisterMtlsConfig config = new RegisterMtlsConfig(chain, key, null, serverCas);
 
-	@Test
-	public void testDisabledWithCredentialsIsRejected()
-	{
-		assertInvalid(new RegisterMtlsConfig(false, chain, null, null, null), ENDPOINT);
-		assertInvalid(new RegisterMtlsConfig(false, null, null, null, serverCas), ENDPOINT);
-	}
-
-	@Test
-	public void testEnabledRequiresHttpsEndpointWithHost()
-	{
-		RegisterMtlsConfig config = new RegisterMtlsConfig(true, chain, key, null, serverCas);
-
-		assertTrue(config.createSslContext(crypto, ENDPOINT).isPresent());
+		assertNotNull(config.createSslContext(crypto, ENDPOINT));
 		assertInvalid(config, "http://register.example/api/medic-import");
 		assertInvalid(config, "https:///api/medic-import");
 		assertInvalid(config, "/api/medic-import");
 	}
 
 	@Test
-	public void testEnabledRequiresChainKeyAndServerCas()
+	public void testRequiresCertificateChain()
 	{
-		assertInvalid(new RegisterMtlsConfig(true, null, key, null, serverCas), ENDPOINT);
-		assertInvalid(new RegisterMtlsConfig(true, chain, " ", null, serverCas), ENDPOINT);
-		assertInvalid(new RegisterMtlsConfig(true, chain, key, null, null), ENDPOINT);
-		assertInvalid(new RegisterMtlsConfig(true, directory.resolve("missing.pem").toString(), key, null, serverCas),
+		assertRequired(new RegisterMtlsConfig(null, key, null, serverCas), "certificate.chain.file");
+	}
+
+	@Test
+	public void testRequiresPrivateKey()
+	{
+		assertRequired(new RegisterMtlsConfig(chain, " ", null, serverCas), "private.key.file");
+	}
+
+	@Test
+	public void testRequiresTrustedServerCas()
+	{
+		assertRequired(new RegisterMtlsConfig(chain, key, null, null), "trusted.server.cas.file");
+	}
+
+	@Test
+	public void testMissingFileIsRejected()
+	{
+		assertInvalid(new RegisterMtlsConfig(directory.resolve("missing.pem").toString(), key, null, serverCas),
 				ENDPOINT);
+	}
+
+	private void assertRequired(RegisterMtlsConfig config, String property)
+	{
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+				() -> config.createSslContext(crypto, ENDPOINT));
+		assertEquals(RegisterMtlsConfig.PROPERTY_PREFIX + property + " is required", exception.getMessage());
 	}
 
 	@Test
@@ -85,8 +93,8 @@ public class RegisterMtlsConfigTest
 	{
 		String empty = Files.writeString(directory.resolve("empty.pem"), "").toString();
 
-		assertInvalid(new RegisterMtlsConfig(true, empty, key, null, serverCas), ENDPOINT);
-		assertInvalid(new RegisterMtlsConfig(true, chain, key, null, empty), ENDPOINT);
+		assertInvalid(new RegisterMtlsConfig(empty, key, null, serverCas), ENDPOINT);
+		assertInvalid(new RegisterMtlsConfig(chain, key, null, empty), ENDPOINT);
 	}
 
 	@Test
@@ -94,7 +102,7 @@ public class RegisterMtlsConfigTest
 	{
 		String otherKey = TestPki.writeKey(folder.newFolder().toPath(), pki.client("other").privateKey()).toString();
 
-		assertInvalid(new RegisterMtlsConfig(true, chain, otherKey, null, serverCas), ENDPOINT);
+		assertInvalid(new RegisterMtlsConfig(chain, otherKey, null, serverCas), ENDPOINT);
 	}
 
 	@Test
@@ -103,9 +111,9 @@ public class RegisterMtlsConfigTest
 		Identity expired = pki.client("expired", Duration.ofDays(-1));
 		Path expiredDirectory = folder.newFolder().toPath();
 
-		assertTrue(new RegisterMtlsConfig(true, TestPki.writeChain(expiredDirectory, expired).toString(),
+		assertNotNull(new RegisterMtlsConfig(TestPki.writeChain(expiredDirectory, expired).toString(),
 				TestPki.writeKey(expiredDirectory, expired.privateKey()).toString(), null, serverCas)
-				.createSslContext(crypto, ENDPOINT).isPresent());
+				.createSslContext(crypto, ENDPOINT));
 	}
 
 	@Test
@@ -114,7 +122,7 @@ public class RegisterMtlsConfigTest
 		Identity server = pki.server("register.example");
 		Path serverDirectory = folder.newFolder().toPath();
 
-		assertInvalid(new RegisterMtlsConfig(true, TestPki.writeChain(serverDirectory, server).toString(),
+		assertInvalid(new RegisterMtlsConfig(TestPki.writeChain(serverDirectory, server).toString(),
 				TestPki.writeKey(serverDirectory, server.privateKey()).toString(), null, serverCas), ENDPOINT);
 	}
 
@@ -124,7 +132,7 @@ public class RegisterMtlsConfigTest
 		String caAsLeaf = TestPki.writeCertificates(directory.resolve("ca-leaf.pem"), pki.caCertificate()).toString();
 		String caKey = TestPki.writeKey(folder.newFolder().toPath(), pki.caPrivateKey()).toString();
 
-		assertInvalid(new RegisterMtlsConfig(true, caAsLeaf, caKey, null, serverCas), ENDPOINT);
+		assertInvalid(new RegisterMtlsConfig(caAsLeaf, caKey, null, serverCas), ENDPOINT);
 	}
 
 	@Test
@@ -138,9 +146,9 @@ public class RegisterMtlsConfigTest
 		String password = Files.writeString(directory.resolve("password"), " pass word \n").toString();
 		String wrongPassword = Files.writeString(directory.resolve("wrong-password"), "pass word\n").toString();
 
-		assertTrue(new RegisterMtlsConfig(true, encryptedChain, encryptedKey, password, serverCas)
-				.createSslContext(crypto, ENDPOINT).isPresent());
-		assertInvalid(new RegisterMtlsConfig(true, encryptedChain, encryptedKey, wrongPassword, serverCas), ENDPOINT);
+		assertNotNull(new RegisterMtlsConfig(encryptedChain, encryptedKey, password, serverCas).createSslContext(crypto,
+				ENDPOINT));
+		assertInvalid(new RegisterMtlsConfig(encryptedChain, encryptedKey, wrongPassword, serverCas), ENDPOINT);
 	}
 
 	private void assertInvalid(RegisterMtlsConfig config, String endpoint)

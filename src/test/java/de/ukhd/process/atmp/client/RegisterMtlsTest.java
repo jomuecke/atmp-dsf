@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,12 +12,8 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
 
 import org.junit.After;
 import org.junit.Before;
@@ -26,13 +21,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsExchange;
-import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
-import de.hsheilbronn.mi.utils.crypto.context.SSLContextFactory;
-import de.hsheilbronn.mi.utils.crypto.keystore.KeyStoreCreator;
 import de.ukhd.process.atmp.client.TestPki.Identity;
 import dev.dsf.bpe.v2.config.ProxyConfig;
 
@@ -150,7 +141,7 @@ public class RegisterMtlsTest
 	private RegisterMtlsConfig mtls(Identity client) throws IOException
 	{
 		Path directory = folder.newFolder().toPath();
-		return new RegisterMtlsConfig(true, TestPki.writeChain(directory, client).toString(),
+		return new RegisterMtlsConfig(TestPki.writeChain(directory, client).toString(),
 				TestPki.writeKey(directory, client.privateKey()).toString(), null, trustedServerCas.toString());
 	}
 
@@ -158,7 +149,7 @@ public class RegisterMtlsTest
 	{
 		String endpoint = endpoint("localhost");
 		return new RegisterClientJersey(endpoint, "bhz-demo", apiKeyFile.toString(), Duration.ofSeconds(5),
-				Duration.ofSeconds(5), noProxy(), mtls.createSslContext(crypto, endpoint).orElse(null));
+				Duration.ofSeconds(5), noProxy(), mtls.createSslContext(crypto, endpoint));
 	}
 
 	private String endpoint(String host)
@@ -174,23 +165,7 @@ public class RegisterMtlsTest
 
 	private void startRegister(Identity server, X509Certificate trustedClientCa) throws Exception
 	{
-		char[] password = UUID.randomUUID().toString().toCharArray();
-		SSLContext context = SSLContextFactory.createSSLContext(
-				KeyStoreCreator.jksForTrustedCertificates(trustedClientCa), KeyStoreCreator
-						.jksForPrivateKeyAndCertificateChain(server.privateKey(), password, server.certificate()),
-				password);
-
-		register = HttpsServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-		register.setHttpsConfigurator(new HttpsConfigurator(context)
-		{
-			@Override
-			public void configure(HttpsParameters parameters)
-			{
-				SSLParameters sslParameters = getSSLContext().getDefaultSSLParameters();
-				sslParameters.setNeedClientAuth(true);
-				parameters.setSSLParameters(sslParameters);
-			}
-		});
+		register = TestRegisterServer.create(server, trustedClientCa);
 		register.createContext("/api/medic-import", exchange ->
 		{
 			imports.incrementAndGet();

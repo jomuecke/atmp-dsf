@@ -50,7 +50,6 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 	private final Client httpClient;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final String apiKeyHeaderValue;
-	private final boolean mtlsEnabled;
 
 	/**
 	 * @param importEndpointUrl
@@ -67,17 +66,15 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 	 * @param proxyConfig
 	 *            DSF BPE proxy configuration, not {@code null}
 	 * @param mtlsContext
-	 *            client-certificate TLS context from {@link RegisterMtlsConfig}, {@code null} for the JVM default TLS
-	 *            setup without a client certificate
+	 *            client-certificate TLS context from {@link RegisterMtlsConfig}, not {@code null}
 	 */
 	public RegisterClientJersey(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
 			Duration requestTimeout, ProxyConfig proxyConfig, SSLContext mtlsContext) throws IOException
 	{
 		this.importEndpoint = configuredEndpoint(importEndpointUrl);
 		this.apiKeyHeaderValue = apiKeyHeaderValue(bhz, apiKeyFile);
-		this.mtlsEnabled = mtlsContext != null;
 		this.httpClient = createHttpClient(importEndpoint, connectTimeout, requestTimeout,
-				Objects.requireNonNull(proxyConfig, "proxyConfig"), mtlsContext);
+				Objects.requireNonNull(proxyConfig, "proxyConfig"), Objects.requireNonNull(mtlsContext, "mtlsContext"));
 	}
 
 	private String apiKeyHeaderValue(String bhz, String apiKeyFile) throws IOException
@@ -118,13 +115,9 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 			clientConfig.property(ClientProperties.PROXY_PASSWORD, password == null ? null : String.valueOf(password));
 		}
 
-		logger.info("Register API client configured for endpoint '{}' with DSF outbound proxy {} and mTLS {}", endpoint,
-				proxyEnabled ? "enabled" : "disabled", mtlsContext != null ? "enabled" : "disabled");
-		ClientBuilder builder = ClientBuilder.newBuilder().withConfig(clientConfig);
-		if (mtlsContext != null)
-			builder.sslContext(mtlsContext);
-
-		return builder.build();
+		logger.info("Register API client configured for endpoint '{}' with DSF outbound proxy {} and mTLS enabled",
+				endpoint, proxyEnabled ? "enabled" : "disabled");
+		return ClientBuilder.newBuilder().withConfig(clientConfig).sslContext(mtlsContext).build();
 	}
 
 	private static int timeoutMilliseconds(Duration timeout, String name)
@@ -215,10 +208,10 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 		{
 			if (cause instanceof SSLException)
 				return " — TLS connection failed: check the register server certificate trust and hostname"
-						+ (mtlsEnabled ? ", and that the register accepts this site's client certificate" : "");
+						+ ", and that the register accepts this site's client certificate";
 
 			// A register rejecting the client certificate after a TLS 1.3 handshake shows up as a broken connection
-			if (mtlsEnabled && cause instanceof SocketException && !(cause instanceof ConnectException))
+			if (cause instanceof SocketException && !(cause instanceof ConnectException))
 				return " — the register closed the connection; with mTLS this may mean it rejected the client certificate";
 		}
 
