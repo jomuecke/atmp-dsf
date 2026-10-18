@@ -2,6 +2,8 @@ package de.ukhd.process.atmp.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -50,10 +52,10 @@ public class RegisterClientTest
 		try (TestConnectProxy proxy = new TestConnectProxy();
 				RegisterClientJersey client = proxyClient(proxy, "wrong-password"))
 		{
-			RegisterClient.RegisterCycleException exception = org.junit.Assert
-					.assertThrows(RegisterClient.RegisterCycleException.class, () -> client.send("{}"));
+			RegisterClient.RegisterCycleException exception = assertThrows(RegisterClient.RegisterCycleException.class,
+					() -> client.send("{}"));
 			assertTrue(exception.getMessage(), exception.getMessage().contains("407"));
-			assertEquals(null, proxy.failure.get());
+			assertNull(proxy.failure.get());
 		}
 	}
 
@@ -63,14 +65,14 @@ public class RegisterClientTest
 		try (TestConnectProxy proxy = new TestConnectProxy();
 				RegisterClientJersey client = proxyClient(proxy, "proxy-password"))
 		{
-			org.junit.Assert.assertThrows(RegisterClient.RegisterCycleException.class, () -> client.send("{}"));
+			assertThrows(RegisterClient.RegisterCycleException.class, () -> client.send("{}"));
 			assertEquals("CONNECT register.invalid:443 HTTP/1.1", proxy.requestLine.get());
 			assertEquals(
 					"Basic " + Base64.getEncoder()
 							.encodeToString("proxy-user:proxy-password".getBytes(StandardCharsets.ISO_8859_1)),
 					proxy.authorization.get());
 			assertTrue("CONNECT must retry after the proxy's challenge", proxy.requests.get() >= 2);
-			assertEquals(null, proxy.failure.get());
+			assertNull(proxy.failure.get());
 		}
 	}
 
@@ -380,9 +382,9 @@ public class RegisterClientTest
 			{
 				assertTrue(client.send("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}").isFullyAccepted());
 				assertEquals("HTTP/1.1", protocol.get());
-				assertEquals(null, upgrade.get());
-				assertEquals(null, http2Settings.get());
-				assertEquals(null, transferEncoding.get());
+				assertNull(upgrade.get());
+				assertNull(http2Settings.get());
+				assertNull(transferEncoding.get());
 				assertEquals("{\"resourceType\":\"Bundle\",\"type\":\"collection\"}", body.get());
 				assertEquals("45", contentLength.get());
 				assertEquals("POST", method.get());
