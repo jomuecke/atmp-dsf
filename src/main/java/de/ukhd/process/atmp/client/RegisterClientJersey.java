@@ -1,6 +1,8 @@
 package de.ukhd.process.atmp.client;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,6 +11,9 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
 import org.glassfish.jersey.client.ClientConfig;
@@ -60,14 +65,16 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 	 *            how long to wait for the response, not {@code null}
 	 * @param proxyConfig
 	 *            DSF BPE proxy configuration, not {@code null}
+	 * @param mtlsContext
+	 *            client-certificate TLS context from {@link RegisterMtlsConfig}, not {@code null}
 	 */
 	public RegisterClientJersey(String importEndpointUrl, String bhz, String apiKeyFile, Duration connectTimeout,
-			Duration requestTimeout, ProxyConfig proxyConfig) throws IOException
+			Duration requestTimeout, ProxyConfig proxyConfig, SSLContext mtlsContext) throws IOException
 	{
 		this.importEndpoint = configuredEndpoint(importEndpointUrl);
 		this.apiKeyHeaderValue = apiKeyHeaderValue(bhz, apiKeyFile);
 		this.httpClient = createHttpClient(importEndpoint, connectTimeout, requestTimeout,
-				Objects.requireNonNull(proxyConfig, "proxyConfig"));
+				Objects.requireNonNull(proxyConfig, "proxyConfig"), Objects.requireNonNull(mtlsContext, "mtlsContext"));
 	}
 
 	private String apiKeyHeaderValue(String bhz, String apiKeyFile) throws IOException
@@ -88,14 +95,16 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 	}
 
 	private Client createHttpClient(URI endpoint, Duration connectTimeout, Duration requestTimeout,
-			ProxyConfig proxyConfig)
+			ProxyConfig proxyConfig, SSLContext mtlsContext)
 	{
 		ClientConfig clientConfig = new ClientConfig().connectorProvider(new ApacheConnectorProvider())
 				.property(ClientProperties.CONNECT_TIMEOUT, timeoutMilliseconds(connectTimeout, "connectTimeout"))
 				.property(ClientProperties.READ_TIMEOUT, timeoutMilliseconds(requestTimeout, "requestTimeout"))
 				// A proxy may issue a 407 challenge. Buffering keeps this POST body repeatable for the authenticated
 				// retry.
-				.property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED);
+				.property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+				// A redirect must not carry the API key or client identity to another destination.
+				.property(ClientProperties.FOLLOW_REDIRECTS, false);
 
 		boolean proxyEnabled = proxyConfig.isEnabled(endpoint.toString());
 		if (proxyEnabled)
@@ -106,9 +115,9 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 			clientConfig.property(ClientProperties.PROXY_PASSWORD, password == null ? null : String.valueOf(password));
 		}
 
-		logger.info("Register API client configured for endpoint '{}' with DSF outbound proxy {}", endpoint,
-				proxyEnabled ? "enabled" : "disabled");
-		return ClientBuilder.newBuilder().withConfig(clientConfig).build();
+		logger.info("Register API client configured for endpoint '{}' with DSF outbound proxy {} and mTLS enabled",
+				endpoint, proxyEnabled ? "enabled" : "disabled");
+		return ClientBuilder.newBuilder().withConfig(clientConfig).sslContext(mtlsContext).build();
 	}
 
 	private static int timeoutMilliseconds(Duration timeout, String name)
@@ -147,8 +156,8 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 		}
 		catch (ProcessingException exception)
 		{
-			throw new RegisterCycleException(
-					"Could not reach register API at '" + importEndpoint + "': " + exception.getMessage(), exception);
+			throw new RegisterCycleException("Could not reach register API at '" + importEndpoint + "': "
+					+ exception.getMessage() + connectionFailureHint(exception), exception);
 		}
 
 		if (status == 401)
@@ -157,6 +166,15 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 							+ truncated(body)
 							+ " — E060 header missing, E061 unknown bhz, E062 wrong apiKey, E063 malformed header",
 					null);
+
+		if (status == 403)
+			throw new RegisterCycleException("Register API at '" + importEndpoint
+					+ "' denied access (status 403), e.g. a rejected client certificate at the register ingress or a missing import permission: "
+					+ truncated(body), null);
+
+		if (status >= 300 && status <= 399)
+			throw new RegisterCycleException("Register API at '" + importEndpoint + "' answered with redirect status "
+					+ status + ", redirects are not followed; configure the final import URL", null);
 
 		if (status == 407)
 			throw new RegisterCycleException(
@@ -182,6 +200,22 @@ public final class RegisterClientJersey implements RegisterClient, AutoCloseable
 					status, ack.describeProblems());
 
 		return ack;
+	}
+
+	private String connectionFailureHint(ProcessingException exception)
+	{
+		for (Throwable cause = exception; cause != null; cause = cause.getCause())
+		{
+			if (cause instanceof SSLException)
+				return " — TLS connection failed: check the register server certificate trust and hostname"
+						+ ", and that the register accepts this site's client certificate";
+
+			// A register rejecting the client certificate after a TLS 1.3 handshake shows up as a broken connection
+			if (cause instanceof SocketException && !(cause instanceof ConnectException))
+				return " — the register closed the connection; with mTLS this may mean it rejected the client certificate";
+		}
+
+		return "";
 	}
 
 	private RegisterAck parseAck(int httpStatus, String body)

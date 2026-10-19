@@ -9,6 +9,7 @@ docs/
 .agents/
 CLAUDE.md
 AGENTS.md
+CONTEXT.md
 ZUser- Medic.postman_collection.json
 
 # Local ATMP access-list data (may contain sensitive identifiers)

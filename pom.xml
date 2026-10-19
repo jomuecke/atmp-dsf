@@ -6,7 +6,7 @@
 
 	<groupId>de.ukhd</groupId>
 	<artifactId>atmp-dsf</artifactId>
-	<version>1.0.0.0</version>
+	<version>1.0.1.0</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -83,6 +83,13 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.13.2</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- DSF's CryptoService implementation library; the DSF v2 impl artifact itself is not published -->
+		<dependency>
+			<groupId>de.hs-heilbronn.mi</groupId>
+			<artifactId>crypto-utils</artifactId>
+			<version>5.2.1</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
