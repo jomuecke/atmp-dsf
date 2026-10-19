@@ -11,7 +11,7 @@ public class AtmpProcessPluginDefinition implements ProcessPluginDefinition
 {
 	@SuppressWarnings("PMD.AvoidUsingHardCodedIP") // Semantic version, not an IP address
 	public static final String VERSION = "1.0.1.0";
-	public static final LocalDate RELEASE_DATE = LocalDate.of(2026, 10, 17);
+	public static final LocalDate RELEASE_DATE = LocalDate.of(2026, 10, 19);
 
 	@Override
 	public String getName()
